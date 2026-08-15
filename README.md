@@ -2,7 +2,11 @@
 
 Um caça-palavras **colorido, divertido e com som**, feito em **HTML + CSS + JavaScript puro** — funciona em **desktop e mobile**, sem instalação e sem dependências.
 
-👉 **Como jogar:** basta abrir o arquivo [`index.html`](index.html) no navegador.
+## ▶️ Jogar agora
+
+### 🎮 **[Clique aqui para jogar » dliedke.github.io/CacaPalavras](https://dliedke.github.io/CacaPalavras/)**
+
+Ou, para rodar localmente, basta abrir o arquivo [`index.html`](index.html) no navegador.
 
 ## ✨ Destaques
 
