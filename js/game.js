@@ -134,17 +134,25 @@
     return null;
   }
 
-  function gerarGrade() {
+  // Gera uma grade a partir de um "fornecedor" de candidatas.
+  // fornecerCandidatas() é chamado a cada tentativa e deve devolver a lista
+  // de palavras {norm, exibicao} a posicionar.
+  function gerarGradeCom(fornecerCandidatas, opcoes) {
     const conf = DIFICULDADES[estado.dificuldade];
     estado.tamanho = conf.grid;
     const tamanho = conf.grid;
     const dirsPermitidas = TODAS_DIRECOES.slice(0, conf.dirs);
+    const maxTentativas = (opcoes && opcoes.tentativas) || 25;
+    const minObrigatorio =
+      opcoes && opcoes.minObrigatorio != null
+        ? opcoes.minObrigatorio
+        : Math.min(conf.palavras, 4);
 
     // Tenta gerar uma grade válida algumas vezes.
-    for (let global = 0; global < 25; global++) {
+    for (let global = 0; global < maxTentativas; global++) {
       const grade = Array.from({ length: tamanho }, () => Array(tamanho).fill(""));
       const solucoes = [];
-      const candidatas = escolherPalavras(conf);
+      const candidatas = fornecerCandidatas();
       // Coloca as maiores primeiro (mais difíceis de encaixar).
       candidatas.sort((a, b) => b.norm.length - a.norm.length);
 
@@ -162,7 +170,7 @@
         }
       }
 
-      if (solucoes.length >= Math.min(conf.palavras, 4)) {
+      if (solucoes.length >= minObrigatorio) {
         // Preenche vazios com letras aleatórias.
         for (let l = 0; l < tamanho; l++)
           for (let c = 0; c < tamanho; c++)
@@ -174,6 +182,26 @@
       }
     }
     return false;
+  }
+
+  // Novo jogo: sorteia um conjunto novo de palavras da categoria atual.
+  function gerarGrade() {
+    return gerarGradeCom(() =>
+      escolherPalavras(DIFICULDADES[estado.dificuldade])
+    );
+  }
+
+  // Trocar: reposiciona as MESMAS palavras da rodada atual em novos lugares.
+  function gerarGradeMesmasPalavras() {
+    const palavras = estado.solucoes.map((s) => ({
+      norm: s.palavra,
+      exibicao: s.exibicao,
+    }));
+    // Exige recolocar TODAS as palavras da rodada; mais tentativas para isso.
+    return gerarGradeCom(() => palavras.slice(), {
+      minObrigatorio: palavras.length,
+      tentativas: 80,
+    });
   }
 
   /* --------------------------- Referências DOM ---------------------------- */
@@ -204,6 +232,19 @@
         celulasEl[l][c] = cel;
       }
     }
+    ajustarFonteGrade();
+  }
+
+  // Ajusta o tamanho da fonte das letras conforme o tamanho real da célula,
+  // para que as letras fiquem grandes e legíveis em qualquer grade/tela.
+  function ajustarFonteGrade() {
+    requestAnimationFrame(() => {
+      if (!celulasEl.length || !celulasEl[0][0]) return;
+      const largura = celulasEl[0][0].getBoundingClientRect().width;
+      if (largura > 0) {
+        gridEl.style.setProperty("--cel-fonte", (largura * 0.6).toFixed(1) + "px");
+      }
+    });
   }
 
   function renderLista() {
@@ -313,11 +354,52 @@
     return setA === setB;
   }
 
+  // Coordenadas {l,c} das células selecionadas.
+  function coordsDaSelecao() {
+    return celulasSelecionadas.map((c) => ({ l: +c.dataset.l, c: +c.dataset.c }));
+  }
+
+  // Produto vetorial 2D (zero => vetores paralelos/colineares).
+  function cruz(a, b) {
+    return a.l * b.c - a.c * b.l;
+  }
+
+  // Seleção "tolerante": aceita se a seleção cobre a palavra na mesma linha,
+  // permitindo errar até UMA célula em cada ponta (uma letra a mais ou a menos).
+  // Ignora o sentido do arraste (funciona de trás pra frente também).
+  function selecaoCobrePalavra(sel, palavra) {
+    if (sel.length < 2 || palavra.length < 2) return false;
+    const W0 = palavra[0];
+    const WD = {
+      l: Math.sign(palavra[1].l - W0.l),
+      c: Math.sign(palavra[1].c - W0.c),
+    };
+    const S0 = sel[0];
+    const Sn = sel[sel.length - 1];
+    const D = { l: Math.sign(Sn.l - S0.l), c: Math.sign(Sn.c - S0.c) };
+    if (D.l === 0 && D.c === 0) return false;
+    // A seleção precisa ser paralela à direção da palavra...
+    if (cruz(D, WD) !== 0) return false;
+    // ...e estar exatamente sobre a mesma linha da grade.
+    if (cruz({ l: S0.l - W0.l, c: S0.c - W0.c }, WD) !== 0) return false;
+    // Índice de cada célula ao longo da linha (0 = início da palavra).
+    const t = (X) =>
+      WD.l !== 0 ? (X.l - W0.l) * WD.l : (X.c - W0.c) * WD.c;
+    const a = t(S0);
+    const b = t(Sn);
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const L = palavra.length;
+    // Pontas podem diferir em no máximo 1 célula em relação à palavra.
+    return Math.abs(lo - 0) <= 1 && Math.abs(hi - (L - 1)) <= 1;
+  }
+
   function avaliarSelecao() {
     if (celulasSelecionadas.length < 2) return;
     const texto = textoDaSelecao(celulasSelecionadas);
     const invertido = texto.split("").reverse().join("");
 
+    // 1ª passada: correspondência exata (letras + células).
     for (const sol of estado.solucoes) {
       if (sol.achado) continue;
       const bate =
@@ -328,6 +410,18 @@
         return;
       }
     }
+
+    // 2ª passada: correspondência tolerante (±1 letra na ponta) para
+    // facilitar a seleção, principalmente no toque.
+    const sel = coordsDaSelecao();
+    for (const sol of estado.solucoes) {
+      if (sol.achado) continue;
+      if (selecaoCobrePalavra(sel, sol.celulas)) {
+        marcarAchado(sol);
+        return;
+      }
+    }
+
     // Não achou nada
     SoundFX.error();
     estado.sequencia = 0;
@@ -511,6 +605,29 @@
     SoundFX.start();
   }
 
+  // "Trocar": mantém as mesmas palavras da rodada, mas embaralha as posições
+  // na grade e zera o progresso. Se ainda não houver rodada, começa uma nova.
+  function trocarDisposicao() {
+    if (!estado.solucoes.length) { novoJogo(); return; }
+    SoundFX.unlock();
+    fecharModais();
+    estado.achadas = 0;
+    estado.pontos = 0;
+    estado.sequencia = 0;
+    estado.dicasUsadas = 0;
+    estado.jogando = true;
+
+    const ok = gerarGradeMesmasPalavras();
+    if (!ok) { novoJogo(); return; }
+
+    renderGrade();
+    renderLista();
+    atualizarPlacar();
+    tempoEl.textContent = "00:00";
+    iniciarTimer();
+    SoundFX.start();
+  }
+
   function fecharModais() {
     document.querySelectorAll(".modal.aberto").forEach((m) => m.classList.remove("aberto"));
   }
@@ -547,7 +664,7 @@
     // Botões
     $("#btn-novo").addEventListener("click", () => { SoundFX.click(); novoJogo(); });
     $("#btn-dica").addEventListener("click", () => { SoundFX.click(); darDica(); });
-    $("#btn-embaralhar").addEventListener("click", () => { SoundFX.click(); novoJogo(); });
+    $("#btn-embaralhar").addEventListener("click", () => { SoundFX.click(); trocarDisposicao(); });
     $("#btn-jogar-novamente").addEventListener("click", () => { SoundFX.click(); novoJogo(); });
     $("#btn-fechar-modal").addEventListener("click", () => { SoundFX.click(); fecharModais(); });
 
@@ -588,6 +705,14 @@
 
     // Evita menu de contexto atrapalhando o toque longo
     gridEl.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // Recalcula o tamanho das letras ao redimensionar/girar a tela.
+    let resizeTid = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTid);
+      resizeTid = setTimeout(ajustarFonteGrade, 120);
+    });
+    window.addEventListener("orientationchange", () => setTimeout(ajustarFonteGrade, 200));
   }
 
   /* ------------------------------- Início --------------------------------- */
