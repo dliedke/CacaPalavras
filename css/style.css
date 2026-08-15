@@ -298,9 +298,16 @@ body {
   background: linear-gradient(160deg, #ff3b3b, #b30000) !important;
   animation: tremer 0.35s;
 }
+/* Destaque da dica: cor ESTÁTICA (não depende de animação), então continua
+   visível mesmo com "Reduzir movimento" ativado. Fica até o próximo toque. */
 .cel.dica {
-  animation: piscaDica 0.4s ease-in-out 6;
+  background: linear-gradient(160deg, var(--amarelo), var(--laranja));
+  color: #2a0a4a;
+  border-color: #fff;
+  transform: scale(1.2);
+  box-shadow: 0 0 0 4px rgba(255, 210, 63, 0.55), 0 0 22px 5px var(--amarelo);
   z-index: 3;
+  animation: pulsaDica 0.75s ease-in-out infinite;
 }
 .cel.pop { animation: pop 0.4s ease; }
 
@@ -309,9 +316,10 @@ body {
   25% { transform: translateX(-4px); }
   75% { transform: translateX(4px); }
 }
-@keyframes piscaDica {
-  0%, 100% { background: linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05)); transform: scale(1); box-shadow: none; color: #fff; }
-  50% { background: linear-gradient(160deg, var(--amarelo), var(--laranja)); transform: scale(1.4); box-shadow: 0 0 0 4px rgba(255,210,63,0.6), 0 0 24px 6px var(--amarelo); color: #2a0a4a; }
+/* Só a "respiração" do brilho é animada; o fundo amarelo é estático. */
+@keyframes pulsaDica {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(255, 210, 63, 0.55), 0 0 22px 5px var(--amarelo); transform: scale(1.2); }
+  50% { box-shadow: 0 0 0 7px rgba(255, 210, 63, 0.35), 0 0 32px 9px var(--laranja); transform: scale(1.32); }
 }
 @keyframes pop {
   0% { transform: scale(1); }
@@ -345,12 +353,17 @@ body {
   transform: scale(0.96);
   border-color: rgba(255, 255, 255, 0.4);
 }
+/* Destaque estático do item (visível mesmo com "Reduzir movimento"). */
 .palavra-item.destaque {
-  animation: destaqueItem 0.4s ease-in-out 4;
+  background: linear-gradient(135deg, var(--amarelo), var(--laranja));
+  color: #2a0a4a;
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 210, 63, 0.4);
+  animation: destaqueItem 0.5s ease-in-out infinite;
 }
 @keyframes destaqueItem {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); background: var(--azul); color: #08321f; }
+  0%, 100% { transform: scale(1.06); }
+  50% { transform: scale(1.14); }
 }
 
 /* ----------------------- Pontuação flutuante ---------------------------- */

@@ -270,6 +270,15 @@
   let celulasSelecionadas = [];
   let ultimoTick = -1;
 
+  // Destaque da dica (persiste até o próximo toque do jogador).
+  let dicaAtual = { cel: null, item: null, timer: null };
+
+  function limparDica() {
+    if (dicaAtual.timer) { clearTimeout(dicaAtual.timer); dicaAtual.timer = null; }
+    if (dicaAtual.cel) { dicaAtual.cel.classList.remove("dica"); dicaAtual.cel = null; }
+    if (dicaAtual.item) { dicaAtual.item.classList.remove("destaque"); dicaAtual.item = null; }
+  }
+
   function coordDoEvento(ev) {
     const ponto = ev.touches ? ev.touches[0] : ev;
     const el = document.elementFromPoint(ponto.clientX, ponto.clientY);
@@ -319,6 +328,7 @@
     const coord = coordDoEvento(ev);
     if (!coord) return;
     ev.preventDefault();
+    limparDica(); // primeiro toque remove o destaque da dica
     selecionando = true;
     inicioCel = { l: coord.l, c: coord.c };
     ultimoTick = -1;
@@ -517,6 +527,8 @@
     atualizarPlacar();
     SoundFX.hint();
 
+    limparDica(); // remove uma dica anterior, se houver
+
     const { l, c } = sol.celulas[0];
     const cel = celulasEl[l][c];
 
@@ -528,18 +540,20 @@
       gridEl.scrollIntoView();
     }
 
-    // Pisca a primeira letra da palavra (depois de iniciar a rolagem).
-    setTimeout(() => {
-      cel.classList.add("dica");
-      setTimeout(() => cel.classList.remove("dica"), 2400);
-    }, 280);
+    // Marca a primeira letra em amarelo e MANTÉM até o próximo toque
+    // (não depende de animação, então funciona com "Reduzir movimento").
+    cel.classList.add("dica");
+    dicaAtual.cel = cel;
 
-    // Destaca o item correspondente na lista.
+    // Destaca também o item correspondente na lista.
     const item = listaEl.querySelector(`[data-idx="${estado.solucoes.indexOf(sol)}"]`);
     if (item) {
       item.classList.add("destaque");
-      setTimeout(() => item.classList.remove("destaque"), 2400);
+      dicaAtual.item = item;
     }
+
+    // Segurança: some sozinha após 12s caso o jogador não toque em nada.
+    dicaAtual.timer = setTimeout(limparDica, 12000);
   }
 
   /* ------------------------------ Vitória --------------------------------- */
@@ -593,6 +607,7 @@
   function novoJogo() {
     SoundFX.unlock();
     fecharModais();
+    limparDica();
     estado.achadas = 0;
     estado.pontos = 0;
     estado.sequencia = 0;
@@ -622,6 +637,7 @@
     if (!estado.solucoes.length) { novoJogo(); return; }
     SoundFX.unlock();
     fecharModais();
+    limparDica();
     estado.achadas = 0;
     estado.pontos = 0;
     estado.sequencia = 0;
