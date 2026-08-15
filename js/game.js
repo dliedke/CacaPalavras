@@ -517,17 +517,28 @@
     atualizarPlacar();
     SoundFX.hint();
 
-    // Pisca a primeira letra da palavra.
     const { l, c } = sol.celulas[0];
     const cel = celulasEl[l][c];
-    cel.classList.add("dica");
-    setTimeout(() => cel.classList.remove("dica"), 1600);
 
-    // Destaca o item na lista.
+    // Rola até o tabuleiro para a dica ficar visível (essencial no mobile,
+    // onde o board fica acima dos controles).
+    try {
+      gridEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    } catch (e) {
+      gridEl.scrollIntoView();
+    }
+
+    // Pisca a primeira letra da palavra (depois de iniciar a rolagem).
+    setTimeout(() => {
+      cel.classList.add("dica");
+      setTimeout(() => cel.classList.remove("dica"), 2400);
+    }, 280);
+
+    // Destaca o item correspondente na lista.
     const item = listaEl.querySelector(`[data-idx="${estado.solucoes.indexOf(sol)}"]`);
     if (item) {
       item.classList.add("destaque");
-      setTimeout(() => item.classList.remove("destaque"), 1600);
+      setTimeout(() => item.classList.remove("destaque"), 2400);
     }
   }
 
