@@ -274,7 +274,7 @@ body {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
   border: 1px solid var(--cel-borda);
   font-weight: 800;
-  font-size: clamp(0.65rem, 2.4vw, 1.25rem);
+  font-size: var(--cel-fonte, clamp(0.7rem, 2.4vw, 1.25rem));
   color: #fff;
   cursor: pointer;
   transition: transform 0.1s, background 0.15s;
@@ -475,8 +475,8 @@ body {
     gap: 14px;
   }
   .area-grade { order: -1; }
-  .painel-controles { order: 0; }
-  .painel-lista { order: 1; }
+  .painel-lista { order: 0; }
+  .painel-controles { order: 1; }
   .dificuldades { grid-template-columns: repeat(4, 1fr); }
   .acoes { flex-direction: row; flex-wrap: wrap; }
   .acoes .btn { flex: 1 1 45%; }

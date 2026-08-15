@@ -204,6 +204,19 @@
         celulasEl[l][c] = cel;
       }
     }
+    ajustarFonteGrade();
+  }
+
+  // Ajusta o tamanho da fonte das letras conforme o tamanho real da célula,
+  // para que as letras fiquem grandes e legíveis em qualquer grade/tela.
+  function ajustarFonteGrade() {
+    requestAnimationFrame(() => {
+      if (!celulasEl.length || !celulasEl[0][0]) return;
+      const largura = celulasEl[0][0].getBoundingClientRect().width;
+      if (largura > 0) {
+        gridEl.style.setProperty("--cel-fonte", (largura * 0.6).toFixed(1) + "px");
+      }
+    });
   }
 
   function renderLista() {
@@ -588,6 +601,14 @@
 
     // Evita menu de contexto atrapalhando o toque longo
     gridEl.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // Recalcula o tamanho das letras ao redimensionar/girar a tela.
+    let resizeTid = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTid);
+      resizeTid = setTimeout(ajustarFonteGrade, 120);
+    });
+    window.addEventListener("orientationchange", () => setTimeout(ajustarFonteGrade, 200));
   }
 
   /* ------------------------------- Início --------------------------------- */
