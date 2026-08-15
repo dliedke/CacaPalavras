@@ -134,17 +134,25 @@
     return null;
   }
 
-  function gerarGrade() {
+  // Gera uma grade a partir de um "fornecedor" de candidatas.
+  // fornecerCandidatas() é chamado a cada tentativa e deve devolver a lista
+  // de palavras {norm, exibicao} a posicionar.
+  function gerarGradeCom(fornecerCandidatas, opcoes) {
     const conf = DIFICULDADES[estado.dificuldade];
     estado.tamanho = conf.grid;
     const tamanho = conf.grid;
     const dirsPermitidas = TODAS_DIRECOES.slice(0, conf.dirs);
+    const maxTentativas = (opcoes && opcoes.tentativas) || 25;
+    const minObrigatorio =
+      opcoes && opcoes.minObrigatorio != null
+        ? opcoes.minObrigatorio
+        : Math.min(conf.palavras, 4);
 
     // Tenta gerar uma grade válida algumas vezes.
-    for (let global = 0; global < 25; global++) {
+    for (let global = 0; global < maxTentativas; global++) {
       const grade = Array.from({ length: tamanho }, () => Array(tamanho).fill(""));
       const solucoes = [];
-      const candidatas = escolherPalavras(conf);
+      const candidatas = fornecerCandidatas();
       // Coloca as maiores primeiro (mais difíceis de encaixar).
       candidatas.sort((a, b) => b.norm.length - a.norm.length);
 
@@ -162,7 +170,7 @@
         }
       }
 
-      if (solucoes.length >= Math.min(conf.palavras, 4)) {
+      if (solucoes.length >= minObrigatorio) {
         // Preenche vazios com letras aleatórias.
         for (let l = 0; l < tamanho; l++)
           for (let c = 0; c < tamanho; c++)
@@ -174,6 +182,26 @@
       }
     }
     return false;
+  }
+
+  // Novo jogo: sorteia um conjunto novo de palavras da categoria atual.
+  function gerarGrade() {
+    return gerarGradeCom(() =>
+      escolherPalavras(DIFICULDADES[estado.dificuldade])
+    );
+  }
+
+  // Trocar: reposiciona as MESMAS palavras da rodada atual em novos lugares.
+  function gerarGradeMesmasPalavras() {
+    const palavras = estado.solucoes.map((s) => ({
+      norm: s.palavra,
+      exibicao: s.exibicao,
+    }));
+    // Exige recolocar TODAS as palavras da rodada; mais tentativas para isso.
+    return gerarGradeCom(() => palavras.slice(), {
+      minObrigatorio: palavras.length,
+      tentativas: 80,
+    });
   }
 
   /* --------------------------- Referências DOM ---------------------------- */
@@ -524,6 +552,29 @@
     SoundFX.start();
   }
 
+  // "Trocar": mantém as mesmas palavras da rodada, mas embaralha as posições
+  // na grade e zera o progresso. Se ainda não houver rodada, começa uma nova.
+  function trocarDisposicao() {
+    if (!estado.solucoes.length) { novoJogo(); return; }
+    SoundFX.unlock();
+    fecharModais();
+    estado.achadas = 0;
+    estado.pontos = 0;
+    estado.sequencia = 0;
+    estado.dicasUsadas = 0;
+    estado.jogando = true;
+
+    const ok = gerarGradeMesmasPalavras();
+    if (!ok) { novoJogo(); return; }
+
+    renderGrade();
+    renderLista();
+    atualizarPlacar();
+    tempoEl.textContent = "00:00";
+    iniciarTimer();
+    SoundFX.start();
+  }
+
   function fecharModais() {
     document.querySelectorAll(".modal.aberto").forEach((m) => m.classList.remove("aberto"));
   }
@@ -560,7 +611,7 @@
     // Botões
     $("#btn-novo").addEventListener("click", () => { SoundFX.click(); novoJogo(); });
     $("#btn-dica").addEventListener("click", () => { SoundFX.click(); darDica(); });
-    $("#btn-embaralhar").addEventListener("click", () => { SoundFX.click(); novoJogo(); });
+    $("#btn-embaralhar").addEventListener("click", () => { SoundFX.click(); trocarDisposicao(); });
     $("#btn-jogar-novamente").addEventListener("click", () => { SoundFX.click(); novoJogo(); });
     $("#btn-fechar-modal").addEventListener("click", () => { SoundFX.click(); fecharModais(); });
 
