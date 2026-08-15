@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#7b2ff7" />
+  <meta name="description" content="Caça-Palavras Turbo — jogo de caça-palavras colorido e divertido com palavras em todas as direções, dificuldades e mais de 1300 palavras." />
+  <title>🔤 Caça-Palavras Turbo</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔤</text></svg>" />
+</head>
+<body>
+  <div class="fundo-animado" aria-hidden="true"></div>
+
+  <header class="topo">
+    <h1 class="titulo">
+      <span class="letra" style="--i:0">C</span><span class="letra" style="--i:1">a</span><span class="letra" style="--i:2">ç</span><span class="letra" style="--i:3">a</span>
+      <span class="titulo-espaco"></span>
+      <span class="letra" style="--i:4">P</span><span class="letra" style="--i:5">a</span><span class="letra" style="--i:6">l</span><span class="letra" style="--i:7">a</span><span class="letra" style="--i:8">v</span><span class="letra" style="--i:9">r</span><span class="letra" style="--i:10">a</span><span class="letra" style="--i:11">s</span>
+      <span class="turbo">TURBO</span>
+    </h1>
+    <button id="btn-mudo" class="btn-icone" title="Ligar/desligar som" aria-label="Som">🔊</button>
+  </header>
+
+  <main class="jogo">
+    <!-- Painel de controles -->
+    <section class="painel painel-controles">
+      <div class="bloco">
+        <label class="rotulo">Dificuldade</label>
+        <div class="dificuldades">
+          <button class="dif-btn" data-dif="facil">😃 Fácil</button>
+          <button class="dif-btn" data-dif="medio">🙂 Médio</button>
+          <button class="dif-btn" data-dif="dificil">😎 Difícil</button>
+          <button class="dif-btn" data-dif="expert">🤯 Expert</button>
+        </div>
+      </div>
+
+      <div class="bloco">
+        <label class="rotulo" for="sel-categoria">Categoria</label>
+        <select id="sel-categoria" class="seletor"></select>
+      </div>
+
+      <div class="bloco acoes">
+        <button id="btn-novo" class="btn btn-primario">🎮 Novo Jogo</button>
+        <button id="btn-dica" class="btn btn-secundario">💡 Dica <small>(-15)</small></button>
+        <button id="btn-embaralhar" class="btn btn-terciario">🔀 Trocar</button>
+        <button id="btn-ajuda" class="btn btn-fantasma">❓ Como jogar</button>
+      </div>
+
+      <p class="rodape-banco">Banco com <strong id="total-banco">0</strong> palavras 🇧🇷</p>
+    </section>
+
+    <!-- Grade -->
+    <section class="area-grade">
+      <div class="placar">
+        <div class="placar-item"><span class="placar-emoji">🏆</span><span id="pontos" class="placar-valor">0</span><span class="placar-nome">pontos</span></div>
+        <div class="placar-item"><span class="placar-emoji">✅</span><span id="contador" class="placar-valor">0/0</span><span class="placar-nome">achadas</span></div>
+        <div class="placar-item"><span class="placar-emoji">⏱️</span><span id="tempo" class="placar-valor">00:00</span><span class="placar-nome">tempo</span></div>
+        <div class="placar-item"><span class="placar-emoji">🔥</span><span id="sequencia" class="placar-valor">—</span><span class="placar-nome">sequência</span></div>
+      </div>
+      <div id="grid" class="grid" role="grid" aria-label="Grade de letras"></div>
+    </section>
+
+    <!-- Lista de palavras -->
+    <section class="painel painel-lista">
+      <h2 class="lista-titulo">🔎 Encontre as palavras</h2>
+      <ul id="lista-palavras" class="lista-palavras"></ul>
+    </section>
+  </main>
+
+  <!-- Modal de vitória -->
+  <div id="modal-vitoria" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-caixa modal-vitoria">
+      <div class="troféu">🏆</div>
+      <h2 class="modal-titulo">Você venceu! 🎉</h2>
+      <p class="modal-sub">Todas as palavras encontradas!</p>
+      <div class="stats-vitoria">
+        <div class="stat"><span class="stat-valor" id="vit-pontos">0</span><span class="stat-nome">🏆 Pontos</span></div>
+        <div class="stat"><span class="stat-valor" id="vit-tempo">00:00</span><span class="stat-nome">⏱️ Tempo</span></div>
+        <div class="stat"><span class="stat-valor" id="vit-palavras">0</span><span class="stat-nome">📝 Palavras</span></div>
+        <div class="stat"><span class="stat-valor" id="vit-dicas">0</span><span class="stat-nome">💡 Dicas</span></div>
+        <div class="stat stat-bonus"><span class="stat-valor" id="vit-bonus">+0</span><span class="stat-nome">⚡ Bônus tempo</span></div>
+      </div>
+      <div class="modal-acoes">
+        <button id="btn-jogar-novamente" class="btn btn-primario grande">🎮 Jogar Novamente</button>
+        <button id="btn-fechar-modal" class="btn btn-fantasma">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de ajuda -->
+  <div id="modal-ajuda" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-caixa">
+      <h2 class="modal-titulo">❓ Como jogar</h2>
+      <ul class="ajuda-lista">
+        <li>🖱️ <strong>Arraste</strong> (mouse ou dedo) da primeira até a última letra de uma palavra.</li>
+        <li>🧭 As palavras podem estar na <strong>horizontal, vertical, diagonal</strong> — e até de <strong>trás pra frente</strong>!</li>
+        <li>🎯 Quanto <strong>maior a dificuldade</strong>, maior a grade e mais direções escondidas.</li>
+        <li>🔥 Ache palavras em <strong>sequência</strong> sem errar para ganhar bônus de pontos.</li>
+        <li>💡 Sem ideia? Use uma <strong>dica</strong> — mas custa 15 pontos.</li>
+        <li>⚡ Termine rápido para ganhar um grande <strong>bônus de tempo</strong> no final!</li>
+      </ul>
+      <div class="modal-acoes">
+        <button id="btn-fechar-ajuda" class="btn btn-primario">Entendi! 👍</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/words.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
