@@ -354,11 +354,52 @@
     return setA === setB;
   }
 
+  // Coordenadas {l,c} das células selecionadas.
+  function coordsDaSelecao() {
+    return celulasSelecionadas.map((c) => ({ l: +c.dataset.l, c: +c.dataset.c }));
+  }
+
+  // Produto vetorial 2D (zero => vetores paralelos/colineares).
+  function cruz(a, b) {
+    return a.l * b.c - a.c * b.l;
+  }
+
+  // Seleção "tolerante": aceita se a seleção cobre a palavra na mesma linha,
+  // permitindo errar até UMA célula em cada ponta (uma letra a mais ou a menos).
+  // Ignora o sentido do arraste (funciona de trás pra frente também).
+  function selecaoCobrePalavra(sel, palavra) {
+    if (sel.length < 2 || palavra.length < 2) return false;
+    const W0 = palavra[0];
+    const WD = {
+      l: Math.sign(palavra[1].l - W0.l),
+      c: Math.sign(palavra[1].c - W0.c),
+    };
+    const S0 = sel[0];
+    const Sn = sel[sel.length - 1];
+    const D = { l: Math.sign(Sn.l - S0.l), c: Math.sign(Sn.c - S0.c) };
+    if (D.l === 0 && D.c === 0) return false;
+    // A seleção precisa ser paralela à direção da palavra...
+    if (cruz(D, WD) !== 0) return false;
+    // ...e estar exatamente sobre a mesma linha da grade.
+    if (cruz({ l: S0.l - W0.l, c: S0.c - W0.c }, WD) !== 0) return false;
+    // Índice de cada célula ao longo da linha (0 = início da palavra).
+    const t = (X) =>
+      WD.l !== 0 ? (X.l - W0.l) * WD.l : (X.c - W0.c) * WD.c;
+    const a = t(S0);
+    const b = t(Sn);
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const L = palavra.length;
+    // Pontas podem diferir em no máximo 1 célula em relação à palavra.
+    return Math.abs(lo - 0) <= 1 && Math.abs(hi - (L - 1)) <= 1;
+  }
+
   function avaliarSelecao() {
     if (celulasSelecionadas.length < 2) return;
     const texto = textoDaSelecao(celulasSelecionadas);
     const invertido = texto.split("").reverse().join("");
 
+    // 1ª passada: correspondência exata (letras + células).
     for (const sol of estado.solucoes) {
       if (sol.achado) continue;
       const bate =
@@ -369,6 +410,18 @@
         return;
       }
     }
+
+    // 2ª passada: correspondência tolerante (±1 letra na ponta) para
+    // facilitar a seleção, principalmente no toque.
+    const sel = coordsDaSelecao();
+    for (const sol of estado.solucoes) {
+      if (sol.achado) continue;
+      if (selecaoCobrePalavra(sel, sol.celulas)) {
+        marcarAchado(sol);
+        return;
+      }
+    }
+
     // Não achou nada
     SoundFX.error();
     estado.sequencia = 0;
