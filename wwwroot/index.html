@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#7b2ff7" />
   <meta name="description" content="Caça-Palavras Turbo — jogo de caça-palavras colorido e divertido com palavras em todas as direções, dificuldades e mais de 1300 palavras." />
   <title>🔤 Caça-Palavras Turbo</title>
-  <link rel="stylesheet" href="css/style.css?v=6" />
+  <link rel="stylesheet" href="css/style.css?v=7" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔤</text></svg>" />
 </head>
 <body>
@@ -57,6 +57,7 @@
         <div class="placar-item"><span class="placar-emoji">✅</span><span id="contador" class="placar-valor">0/0</span><span class="placar-nome">achadas</span></div>
         <div class="placar-item"><span class="placar-emoji">⏱️</span><span id="tempo" class="placar-valor">00:00</span><span class="placar-nome">tempo</span></div>
         <div class="placar-item"><span class="placar-emoji">🔥</span><span id="sequencia" class="placar-valor">—</span><span class="placar-nome">sequência</span></div>
+        <div class="placar-item"><span class="placar-emoji">🏅</span><span id="recorde" class="placar-valor">0</span><span class="placar-nome">recorde</span></div>
       </div>
       <div id="grid" class="grid" role="grid" aria-label="Grade de letras"></div>
     </section>
@@ -74,6 +75,7 @@
       <div class="troféu">🏆</div>
       <h2 class="modal-titulo">Você venceu! 🎉</h2>
       <p class="modal-sub">Todas as palavras encontradas!</p>
+      <p class="modal-recorde" id="vit-recorde-msg" hidden>🏆 Novo recorde nesta dificuldade!</p>
       <div class="stats-vitoria">
         <div class="stat"><span class="stat-valor" id="vit-pontos">0</span><span class="stat-nome">🏆 Pontos</span></div>
         <div class="stat"><span class="stat-valor" id="vit-tempo">00:00</span><span class="stat-nome">⏱️ Tempo</span></div>
@@ -107,8 +109,8 @@
     </div>
   </div>
 
-  <script src="js/words.js?v=6"></script>
-  <script src="js/audio.js?v=6"></script>
-  <script src="js/game.js?v=6"></script>
+  <script src="js/words.js?v=7"></script>
+  <script src="js/audio.js?v=7"></script>
+  <script src="js/game.js?v=7"></script>
 </body>
 </html>

@@ -311,6 +311,20 @@ body {
   animation: pulsaDica 0.75s ease-in-out infinite;
 }
 .cel.pop { animation: pop 0.4s ease; }
+/* Palavra secreta (bônus escondido, não aparece na lista até ser achada). */
+.cel.bonus {
+  background: linear-gradient(160deg, var(--amarelo), var(--rosa), var(--roxo));
+  background-size: 220% 220%;
+  animation: brilhoBonus 1.4s ease infinite;
+  color: #fff;
+  border-color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+@keyframes brilhoBonus {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
 
 @keyframes tremer {
   0%, 100% { transform: translateX(0); }
@@ -384,6 +398,35 @@ body {
   20% { opacity: 1; transform: translate(-50%, -10px) scale(1.2); }
   100% { opacity: 0; transform: translate(-50%, -60px) scale(1); }
 }
+.ganho-flutuante.bonus {
+  font-size: 1.7rem;
+  text-shadow: 0 0 10px rgba(255, 210, 63, 0.9), 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* --------------------------- Toast palavra secreta ----------------------- */
+.toast-bonus {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--amarelo), var(--rosa), var(--roxo));
+  color: #2a0a4a;
+  font-weight: 800;
+  padding: 10px 20px;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  z-index: 250;
+  animation: toastEntra 0.3s ease;
+  text-align: center;
+}
+.toast-bonus.saindo { animation: toastSai 0.4s ease forwards; }
+@keyframes toastEntra {
+  from { opacity: 0; transform: translateX(-50%) translateY(-16px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes toastSai {
+  to { opacity: 0; transform: translateX(-50%) translateY(-16px); }
+}
 
 /* ------------------------------ Modais ---------------------------------- */
 .modal {
@@ -425,6 +468,13 @@ body {
   color: transparent;
 }
 .modal-sub { color: var(--texto-suave); margin-bottom: 20px; }
+.modal-recorde {
+  color: var(--amarelo);
+  font-weight: 800;
+  margin: -12px 0 20px;
+  text-shadow: 0 0 12px rgba(255, 210, 63, 0.6);
+  animation: destaqueItem 0.6s ease-in-out infinite;
+}
 
 .stats-vitoria {
   display: grid;

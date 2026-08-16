@@ -42,6 +42,7 @@
     tamanho: 12,
     grade: [],           // matriz de letras
     solucoes: [],        // {palavra, exibicao, celulas:[{l,c}], achado, cor}
+    bonus: null,          // palavra secreta oculta: {palavra, exibicao, celulas, achado} ou null
     achadas: 0,
     pontos: 0,
     sequencia: 0,
@@ -50,6 +51,33 @@
     jogando: false,
     dicasUsadas: 0,
   };
+
+  /* --------------------------- Recorde persistente ------------------------- */
+  // Guarda a melhor pontuação de cada dificuldade no navegador do jogador.
+  const CHAVE_RECORDES = "cacapalavras.recordes.v1";
+
+  function carregarRecordes() {
+    try {
+      return JSON.parse(localStorage.getItem(CHAVE_RECORDES)) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function salvarRecordes() {
+    try {
+      localStorage.setItem(CHAVE_RECORDES, JSON.stringify(recordes));
+    } catch (e) {
+      /* localStorage indisponível (ex.: modo privado) — recorde só dura a sessão. */
+    }
+  }
+
+  const recordes = carregarRecordes(); // { [dificuldade]: { pontos, tempo } }
+
+  function recordeAtual() {
+    const r = recordes[estado.dificuldade];
+    return r ? r.pontos : 0;
+  }
 
   /* ------------------------- Utilidades de texto -------------------------- */
   // Remove acentos e cedilha, converte para MAIÚSCULAS (para a grade).
@@ -134,6 +162,27 @@
     return null;
   }
 
+  // Tenta esconder UMA palavra bônus extra na grade, fora da lista visível.
+  // Não é obrigatória: se não achar espaço, o jogo segue normalmente sem ela.
+  function tentarColocarBonus(grade, solucoes, dirsPermitidas, tamanho, conf) {
+    const banco = WORD_BANK[estado.categoria] || WORD_BANK["Todas"];
+    const usadas = new Set(solucoes.map((s) => s.palavra));
+    let tentativas = 0;
+    for (const original of embaralhar(banco)) {
+      if (tentativas >= 60) break;
+      const norm = normalizar(original);
+      if (norm.length < 3 || norm.length > Math.min(conf.maxLen, conf.grid)) continue;
+      if (usadas.has(norm)) continue;
+      usadas.add(norm);
+      tentativas++;
+      const res = tentarColocar(grade, norm, dirsPermitidas, tamanho);
+      if (res) {
+        return { palavra: norm, exibicao: embelezar(original), celulas: res.celulas, achado: false };
+      }
+    }
+    return null;
+  }
+
   // Gera uma grade a partir de um "fornecedor" de candidatas.
   // fornecerCandidatas() é chamado a cada tentativa e deve devolver a lista
   // de palavras {norm, exibicao} a posicionar.
@@ -171,6 +220,9 @@
       }
 
       if (solucoes.length >= minObrigatorio) {
+        // Tenta esconder uma palavra bônus extra (best-effort, pode falhar).
+        const bonus = tentarColocarBonus(grade, solucoes, dirsPermitidas, tamanho, conf);
+
         // Preenche vazios com letras aleatórias.
         for (let l = 0; l < tamanho; l++)
           for (let c = 0; c < tamanho; c++)
@@ -178,6 +230,7 @@
 
         estado.grade = grade;
         estado.solucoes = solucoes;
+        estado.bonus = bonus;
         return true;
       }
     }
@@ -212,6 +265,7 @@
   const pontosEl = $("#pontos");
   const tempoEl = $("#tempo");
   const sequenciaEl = $("#sequencia");
+  const recordeEl = $("#recorde");
 
   let celulasEl = []; // matriz de elementos DOM
 
@@ -443,6 +497,17 @@
       }
     }
 
+    // 3ª passada: palavra secreta bônus (não aparece na lista de palavras).
+    if (estado.bonus && !estado.bonus.achado) {
+      const bateBonus =
+        (texto === estado.bonus.palavra || invertido === estado.bonus.palavra) &&
+        mesmaLinha(celulasSelecionadas, estado.bonus.celulas);
+      if (bateBonus) {
+        marcarBonusAchado();
+        return;
+      }
+    }
+
     // Não achou nada
     SoundFX.error();
     estado.sequencia = 0;
@@ -488,10 +553,10 @@
     }
   }
 
-  function mostrarGanho(valor) {
+  function mostrarGanho(valor, bonus) {
     const flut = document.createElement("div");
-    flut.className = "ganho-flutuante";
-    flut.textContent = "+" + valor;
+    flut.className = "ganho-flutuante" + (bonus ? " bonus" : "");
+    flut.textContent = (bonus ? "🎁 +" : "+") + valor;
     const alvo = celulasSelecionadas[0] || gridEl;
     const rect = (alvo.getBoundingClientRect ? alvo : gridEl).getBoundingClientRect();
     flut.style.left = rect.left + rect.width / 2 + "px";
@@ -500,11 +565,43 @@
     setTimeout(() => flut.remove(), 1000);
   }
 
+  // Palavra secreta encontrada: pontos extra + celebração própria, mas não
+  // conta para o total de palavras nem mexe na sequência de combo.
+  function marcarBonusAchado() {
+    const bonus = estado.bonus;
+    bonus.achado = true;
+
+    const conf = DIFICULDADES[estado.dificuldade];
+    const ganho = Math.round((bonus.palavra.length * 15 + 40) * conf.tempoBonus);
+    estado.pontos += ganho;
+
+    for (const { l, c } of bonus.celulas) {
+      const cel = celulasEl[l][c];
+      cel.classList.add("bonus", "pop");
+      setTimeout(() => cel.classList.remove("pop"), 400);
+    }
+
+    SoundFX.bonus();
+    mostrarGanho(ganho, true);
+    mostrarToastBonus(bonus.exibicao);
+    atualizarPlacar();
+  }
+
+  function mostrarToastBonus(exibicao) {
+    const toast = document.createElement("div");
+    toast.className = "toast-bonus";
+    toast.textContent = `🎁 Palavra secreta: ${exibicao}!`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add("saindo"), 2200);
+    setTimeout(() => toast.remove(), 2700);
+  }
+
   /* ------------------------------- Placar --------------------------------- */
   function atualizarPlacar() {
     pontosEl.textContent = estado.pontos;
     contadorEl.textContent = `${estado.achadas}/${estado.solucoes.length}`;
     sequenciaEl.textContent = estado.sequencia > 1 ? `🔥 ${estado.sequencia}x` : "—";
+    recordeEl.textContent = recordeAtual();
   }
 
   function formatarTempo(ms) {
@@ -580,6 +677,14 @@
     const bonusTempo = Math.max(0, Math.round((300000 - tempo) / 1000)) ;
     const bonusFinal = Math.round(bonusTempo * conf.tempoBonus);
     estado.pontos += bonusFinal;
+
+    // Verifica e salva novo recorde para a dificuldade atual.
+    const novoRecorde = estado.pontos > recordeAtual();
+    if (novoRecorde) {
+      recordes[estado.dificuldade] = { pontos: estado.pontos, tempo };
+      salvarRecordes();
+      setTimeout(() => SoundFX.recorde(), 550);
+    }
     atualizarPlacar();
 
     const modal = $("#modal-vitoria");
@@ -588,6 +693,7 @@
     $("#vit-palavras").textContent = estado.solucoes.length;
     $("#vit-dicas").textContent = estado.dicasUsadas;
     $("#vit-bonus").textContent = "+" + bonusFinal;
+    $("#vit-recorde-msg").hidden = !novoRecorde;
     modal.classList.add("aberto");
   }
 
@@ -623,6 +729,7 @@
     estado.pontos = 0;
     estado.sequencia = 0;
     estado.dicasUsadas = 0;
+    estado.bonus = null;
     estado.jogando = true;
 
     const ok = gerarGrade();
@@ -653,6 +760,7 @@
     estado.pontos = 0;
     estado.sequencia = 0;
     estado.dicasUsadas = 0;
+    estado.bonus = null;
     estado.jogando = true;
 
     const ok = gerarGradeMesmasPalavras();

@@ -120,6 +120,21 @@ const SoundFX = (function () {
       slide(300, 700, 0, 0.2, "sine", 0.25);
       tone(880, 0.18, 0.15, "triangle", 0.2);
     },
+
+    /* Palavra secreta encontrada: brilho mágico curto e reluzente. */
+    bonus() {
+      if (muted) return; ensure();
+      const notes = [880, 1174.66, 1567.98, 2093];
+      notes.forEach((n, i) => tone(n, i * 0.05, 0.18, "sine", 0.22));
+      noiseBurst(0, 0.12, 0.06);
+    },
+
+    /* Novo recorde na tela de vitória: fanfarra extra, mais aguda. */
+    recorde() {
+      if (muted) return; ensure();
+      const seq = [1046.5, 1318.5, 1567.98, 2093];
+      seq.forEach((n, i) => tone(n, i * 0.09, 0.28, "sine", 0.22));
+    },
   };
 
   return api;
