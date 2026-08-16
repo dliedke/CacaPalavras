@@ -323,8 +323,17 @@
     }
   }
 
+  // Cancela a seleção em andamento (ex.: quando um 2º dedo entra para o zoom).
+  function cancelarSelecao() {
+    selecionando = false;
+    limparSelecaoTemp();
+    inicioCel = null;
+  }
+
   function iniciarSelecao(ev) {
     if (!estado.jogando) return;
+    // Com 2+ dedos, deixa o navegador fazer o zoom de pinça.
+    if (ev.touches && ev.touches.length > 1) { cancelarSelecao(); return; }
     const coord = coordDoEvento(ev);
     if (!coord) return;
     ev.preventDefault();
@@ -338,6 +347,8 @@
   }
 
   function moverSelecao(ev) {
+    // Segundo dedo detectado no meio do arraste: cancela p/ permitir o zoom.
+    if (ev.touches && ev.touches.length > 1) { cancelarSelecao(); return; }
     if (!selecionando) return;
     const coord = coordDoEvento(ev);
     if (!coord) return;
