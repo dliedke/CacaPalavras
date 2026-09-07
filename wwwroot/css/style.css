@@ -17,6 +17,45 @@
   --sombra: 0 10px 30px rgba(0, 0, 0, 0.35);
   --raio: 18px;
   --cel-borda: rgba(255, 255, 255, 0.14);
+  /* Cores do fundo animado (trocadas por cada tema). */
+  --fundo1: #2a0a4a;
+  --fundo2: #4a148c;
+  --fundo3: #6a1b9a;
+  --fundo4: #0d47a1;
+  --fundo5: #00695c;
+  --fundo6: #4a148c;
+}
+
+/* ------------------------------ Temas ----------------------------------- */
+/* Cada tema só troca a paleta; todo o resto do visual continua igual. */
+body[data-tema="oceano"] {
+  --roxo: #1b6ca8; --rosa: #00b4d8; --azul: #48cae4; --verde: #06d6a0;
+  --amarelo: #ffe066; --laranja: #ff9f1c;
+  --escuro: #04202f; --escuro2: #0a3550; --texto-suave: #a9d6e5;
+  --fundo1: #04202f; --fundo2: #0a3d62; --fundo3: #0b6e8a;
+  --fundo4: #12798f; --fundo5: #05445e; --fundo6: #0a3d62;
+}
+body[data-tema="doce"] {
+  --roxo: #b5179e; --rosa: #ff70a6; --azul: #70d6ff; --verde: #8ac926;
+  --amarelo: #ffd670; --laranja: #ff9770;
+  --escuro: #3d1230; --escuro2: #5a1c47; --texto-suave: #ffc8dd;
+  --fundo1: #5a1c47; --fundo2: #a4247f; --fundo3: #e0559b;
+  --fundo4: #ff8fab; --fundo5: #c9187e; --fundo6: #7b2361;
+}
+body[data-tema="floresta"] {
+  --roxo: #2d6a4f; --rosa: #f4a261; --azul: #48cae4; --verde: #52b788;
+  --amarelo: #e9c46a; --laranja: #ee9b00;
+  --escuro: #0b2018; --escuro2: #14342a; --texto-suave: #b7e4c7;
+  --fundo1: #0b2018; --fundo2: #1b4332; --fundo3: #2d6a4f;
+  --fundo4: #40916c; --fundo5: #1b4332; --fundo6: #14342a;
+}
+body[data-tema="noite"] {
+  --roxo: #5a189a; --rosa: #ff006e; --azul: #00b4d8; --verde: #00f5d4;
+  --amarelo: #ffd60a; --laranja: #fb5607;
+  --escuro: #05050d; --escuro2: #10101f; --texto-suave: #9aa0c9;
+  --cel-borda: rgba(255, 255, 255, 0.1);
+  --fundo1: #05050d; --fundo2: #10101f; --fundo3: #1b1035;
+  --fundo4: #0b1b3a; --fundo5: #120a24; --fundo6: #05050d;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,7 +80,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(-45deg, #2a0a4a, #4a148c, #6a1b9a, #0d47a1, #00695c, #4a148c);
+  background: linear-gradient(-45deg, var(--fundo1), var(--fundo2), var(--fundo3), var(--fundo4), var(--fundo5), var(--fundo6));
   background-size: 400% 400%;
   animation: gradiente 18s ease infinite;
 }
@@ -82,6 +121,8 @@ body {
   gap: 2px;
 }
 .titulo-espaco { width: 0.5em; }
+/* Mantém as letras de cada palavra juntas quando o título quebra de linha. */
+.titulo-palavra { display: inline-flex; gap: 2px; }
 .letra {
   display: inline-block;
   background: linear-gradient(180deg, #fff, #ffe08a);
@@ -111,10 +152,15 @@ body {
   -webkit-text-fill-color: #2a0a4a;
 }
 
-.btn-icone {
+.topo-acoes {
   position: absolute;
   right: 16px;
   top: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icone {
   width: 48px;
   height: 48px;
   font-size: 1.4rem;
@@ -185,6 +231,51 @@ body {
   box-shadow: 0 6px 18px rgba(123, 47, 247, 0.5);
 }
 
+/* --------------------------- Modos de jogo ------------------------------ */
+.modos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.modo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--texto);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.modo-btn:hover { background: rgba(255, 255, 255, 0.16); transform: translateY(-2px); }
+.modo-emoji { font-size: 1.25rem; line-height: 1; }
+.modo-nome { font-weight: 700; font-size: 0.82rem; text-align: center; line-height: 1.15; }
+.modo-mult {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--amarelo);
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.modo-btn.ativo {
+  background: linear-gradient(135deg, var(--azul), var(--verde));
+  border-color: #fff;
+  box-shadow: 0 6px 18px rgba(76, 201, 240, 0.45);
+  color: #062b22;
+}
+.modo-btn.ativo .modo-mult { color: #fff; }
+.modo-dica {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--texto-suave);
+}
+
 .seletor {
   width: 100%;
   padding: 12px;
@@ -249,6 +340,16 @@ body {
 .placar-emoji { font-size: 1.2rem; }
 .placar-valor { font-size: 1.35rem; font-weight: 900; line-height: 1.1; }
 .placar-nome { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1px; color: var(--texto-suave); }
+/* Contagem regressiva chegando ao fim: fica vermelho e pulsa. */
+.placar-valor.perigo {
+  color: #ff4d4d;
+  text-shadow: 0 0 12px rgba(255, 77, 77, 0.7);
+  animation: pulsaPerigo 0.6s ease-in-out infinite;
+}
+@keyframes pulsaPerigo {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.16); }
+}
 
 /* ------------------------------- Grade ---------------------------------- */
 .grid {
@@ -321,6 +422,13 @@ body {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   cursor: default;
 }
+/* Palavras que ficaram sem achar (mostradas quando o tempo acaba). */
+.cel.revelada {
+  background: rgba(255, 77, 77, 0.28);
+  border-color: rgba(255, 120, 120, 0.85);
+  color: #ffd9d9;
+  box-shadow: inset 0 0 0 1px rgba(255, 120, 120, 0.5);
+}
 @keyframes brilhoBonus {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -368,6 +476,14 @@ body {
   transform: scale(0.96);
   border-color: rgba(255, 255, 255, 0.4);
 }
+/* Modo Às Cegas: a palavra só aparece como 1ª letra + pontinhos. */
+.palavra-item.oculta {
+  font-family: "Courier New", monospace;
+  letter-spacing: 2px;
+  color: var(--texto-suave);
+  background: rgba(255, 255, 255, 0.06);
+  border-style: dashed;
+}
 /* Destaque estático do item (visível mesmo com "Reduzir movimento"). */
 .palavra-item.destaque {
   background: linear-gradient(135deg, var(--amarelo), var(--laranja));
@@ -401,6 +517,12 @@ body {
 .ganho-flutuante.bonus {
   font-size: 1.7rem;
   text-shadow: 0 0 10px rgba(255, 210, 63, 0.9), 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+/* "+10s" subindo do relógio no modo Contra o Relógio. */
+.ganho-flutuante.tempo {
+  font-size: 1.25rem;
+  color: var(--verde);
+  text-shadow: 0 0 10px rgba(6, 214, 160, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6);
 }
 
 /* --------------------------- Toast palavra secreta ----------------------- */
@@ -496,6 +618,103 @@ body {
 
 .modal-acoes { display: flex; flex-direction: column; gap: 10px; }
 
+/* --------------------------- Modal de derrota ---------------------------- */
+.relogio-fim { font-size: 4.5rem; animation: tremeRelogio 1.6s ease-in-out infinite; }
+@keyframes tremeRelogio {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+.modal-derrota .modal-titulo {
+  background: linear-gradient(90deg, #ff9f1c, #ff4d4d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* --------------------------- Modal de opções ----------------------------- */
+.modal-opcoes { max-width: 520px; text-align: left; }
+.modal-opcoes .modal-titulo { text-align: center; }
+.opcao-bloco { margin: 18px 0; }
+
+.temas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tema-btn {
+  flex: 1 1 28%;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--texto);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.tema-btn:hover { background: rgba(255, 255, 255, 0.18); transform: translateY(-2px); }
+.tema-btn.ativo {
+  background: linear-gradient(135deg, var(--roxo), var(--rosa));
+  border-color: #fff;
+  box-shadow: 0 6px 16px rgba(123, 47, 247, 0.45);
+}
+.tema-emoji { font-size: 1rem; }
+
+.opcoes-lista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.opcao-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.opcao-item label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+}
+.opcao-nome { font-weight: 800; font-size: 0.95rem; }
+.opcao-desc { font-size: 0.76rem; color: var(--texto-suave); line-height: 1.35; }
+
+/* Interruptor (checkbox estilizado como "switch"). */
+.interruptor {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.interruptor::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s;
+}
+.interruptor:checked { background: linear-gradient(135deg, var(--verde), var(--azul)); }
+.interruptor:checked::after { transform: translateX(22px); }
+.interruptor:focus-visible { outline: 2px solid var(--amarelo); outline-offset: 2px; }
+
 .ajuda-lista {
   text-align: left;
   list-style: none;
@@ -543,16 +762,22 @@ body {
   .painel-lista { order: 0; }
   .painel-controles { order: 1; }
   .dificuldades { grid-template-columns: repeat(4, 1fr); }
+  .modos { grid-template-columns: repeat(4, 1fr); }
   .acoes { flex-direction: row; flex-wrap: wrap; }
   .acoes .btn { flex: 1 1 45%; }
 }
 
 @media (max-width: 560px) {
-  .topo { padding-top: 14px; }
-  .btn-icone { width: 42px; height: 42px; top: 12px; right: 12px; }
+  /* Reserva espaço dos dois lados para o título não passar por baixo dos
+     botões de ícone (que ficam no canto direito). */
+  .topo { padding: 14px 104px 6px; }
+  .topo-acoes { top: 12px; right: 12px; gap: 6px; }
+  .btn-icone { width: 42px; height: 42px; font-size: 1.2rem; }
   .grid { width: min(94vw, 94vw); }
   .painel { padding: 14px; }
   .dificuldades { grid-template-columns: 1fr 1fr; }
+  .modos { grid-template-columns: 1fr 1fr; }
+  .opcao-desc { font-size: 0.72rem; }
   .placar-item { padding: 6px 12px; min-width: 68px; }
   .placar-valor { font-size: 1.1rem; }
   .stats-vitoria { grid-template-columns: 1fr 1fr; }
@@ -563,3 +788,11 @@ body {
   * { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; }
   .fundo-animado { animation: none; }
 }
+
+/* Opção "Animações" desligada: mesmo efeito de "reduzir movimento". */
+body.sem-animacao * {
+  animation-duration: 0.001s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001s !important;
+}
+body.sem-animacao .fundo-animado { animation: none; }

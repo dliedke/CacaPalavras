@@ -135,6 +135,26 @@ const SoundFX = (function () {
       const seq = [1046.5, 1318.5, 1567.98, 2093];
       seq.forEach((n, i) => tone(n, i * 0.09, 0.28, "sine", 0.22));
     },
+
+    /* Contagem regressiva: bipe seco nos últimos segundos. */
+    tique() {
+      if (muted) return; ensure();
+      tone(1200, 0, 0.09, "square", 0.16);
+    },
+
+    /* Ganhou segundos no relógio: sopro curto subindo. */
+    tempoExtra() {
+      if (muted) return; ensure();
+      slide(700, 1400, 0, 0.18, "sine", 0.18);
+    },
+
+    /* Acabou o tempo: descida grave e desanimada. */
+    derrota() {
+      if (muted) return; ensure();
+      const seq = [392, 349.23, 293.66, 233.08];
+      seq.forEach((n, i) => tone(n, i * 0.16, 0.4, "triangle", 0.26));
+      slide(220, 90, 0.64, 0.8, "sawtooth", 0.18);
+    },
   };
 
   return api;
