@@ -4,22 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#7b2ff7" />
-  <meta name="description" content="Caça-Palavras Turbo — jogo de caça-palavras colorido e divertido com palavras em todas as direções, dificuldades e mais de 1300 palavras." />
+  <meta name="description" content="Caça-Palavras Turbo — jogo de caça-palavras colorido e divertido com modos de jogo, temas, palavras em todas as direções, dificuldades e mais de 1300 palavras." />
   <title>🔤 Caça-Palavras Turbo</title>
-  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔤</text></svg>" />
 </head>
-<body>
+<body data-tema="turbo">
   <div class="fundo-animado" aria-hidden="true"></div>
 
   <header class="topo">
     <h1 class="titulo">
-      <span class="letra" style="--i:0">C</span><span class="letra" style="--i:1">a</span><span class="letra" style="--i:2">ç</span><span class="letra" style="--i:3">a</span>
+      <span class="titulo-palavra"><span class="letra" style="--i:0">C</span><span class="letra" style="--i:1">a</span><span class="letra" style="--i:2">ç</span><span class="letra" style="--i:3">a</span></span>
       <span class="titulo-espaco"></span>
-      <span class="letra" style="--i:4">P</span><span class="letra" style="--i:5">a</span><span class="letra" style="--i:6">l</span><span class="letra" style="--i:7">a</span><span class="letra" style="--i:8">v</span><span class="letra" style="--i:9">r</span><span class="letra" style="--i:10">a</span><span class="letra" style="--i:11">s</span>
+      <span class="titulo-palavra"><span class="letra" style="--i:4">P</span><span class="letra" style="--i:5">a</span><span class="letra" style="--i:6">l</span><span class="letra" style="--i:7">a</span><span class="letra" style="--i:8">v</span><span class="letra" style="--i:9">r</span><span class="letra" style="--i:10">a</span><span class="letra" style="--i:11">s</span></span>
       <span class="turbo">TURBO</span>
     </h1>
-    <button id="btn-mudo" class="btn-icone" title="Ligar/desligar som" aria-label="Som">🔊</button>
+    <div class="topo-acoes">
+      <button id="btn-opcoes" class="btn-icone" title="Opções do jogo" aria-label="Opções">⚙️</button>
+      <button id="btn-mudo" class="btn-icone" title="Ligar/desligar som" aria-label="Som">🔊</button>
+    </div>
   </header>
 
   <main class="jogo">
@@ -33,6 +36,12 @@
           <button class="dif-btn" data-dif="dificil">😎 Difícil</button>
           <button class="dif-btn" data-dif="expert">🤯 Expert</button>
         </div>
+      </div>
+
+      <div class="bloco">
+        <label class="rotulo">Modo de jogo</label>
+        <div id="modos" class="modos"></div>
+        <p id="modo-dica" class="modo-dica"></p>
       </div>
 
       <div class="bloco">
@@ -74,18 +83,86 @@
     <div class="modal-caixa modal-vitoria">
       <div class="troféu">🏆</div>
       <h2 class="modal-titulo">Você venceu! 🎉</h2>
-      <p class="modal-sub">Todas as palavras encontradas!</p>
+      <p class="modal-sub" id="vit-sub">Todas as palavras encontradas!</p>
       <p class="modal-recorde" id="vit-recorde-msg" hidden>🏆 Novo recorde nesta dificuldade!</p>
       <div class="stats-vitoria">
         <div class="stat"><span class="stat-valor" id="vit-pontos">0</span><span class="stat-nome">🏆 Pontos</span></div>
         <div class="stat"><span class="stat-valor" id="vit-tempo">00:00</span><span class="stat-nome">⏱️ Tempo</span></div>
         <div class="stat"><span class="stat-valor" id="vit-palavras">0</span><span class="stat-nome">📝 Palavras</span></div>
         <div class="stat"><span class="stat-valor" id="vit-dicas">0</span><span class="stat-nome">💡 Dicas</span></div>
-        <div class="stat stat-bonus"><span class="stat-valor" id="vit-bonus">+0</span><span class="stat-nome">⚡ Bônus tempo</span></div>
+        <div class="stat stat-bonus"><span class="stat-valor" id="vit-bonus">+0</span><span class="stat-nome">⚡ Bônus final</span></div>
       </div>
       <div class="modal-acoes">
         <button id="btn-jogar-novamente" class="btn btn-primario grande">🎮 Jogar Novamente</button>
         <button id="btn-fechar-modal" class="btn btn-fantasma">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de derrota (modo Contra o Relógio) -->
+  <div id="modal-derrota" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-caixa modal-derrota">
+      <div class="relogio-fim">⏰</div>
+      <h2 class="modal-titulo">Acabou o tempo!</h2>
+      <p class="modal-sub">As palavras que faltaram estão marcadas na grade. 👀</p>
+      <div class="stats-vitoria">
+        <div class="stat"><span class="stat-valor" id="der-pontos">0</span><span class="stat-nome">🏆 Pontos</span></div>
+        <div class="stat"><span class="stat-valor" id="der-achadas">0/0</span><span class="stat-nome">✅ Achadas</span></div>
+      </div>
+      <div class="modal-acoes">
+        <button id="btn-tentar-novamente" class="btn btn-primario grande">🔁 Tentar de Novo</button>
+        <button id="btn-fechar-derrota" class="btn btn-fantasma">Ver a grade</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de opções -->
+  <div id="modal-opcoes" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-caixa modal-opcoes">
+      <h2 class="modal-titulo">⚙️ Opções</h2>
+
+      <div class="opcao-bloco">
+        <label class="rotulo">🎨 Tema visual</label>
+        <div id="temas" class="temas"></div>
+      </div>
+
+      <div class="opcao-bloco">
+        <label class="rotulo">✨ Extras</label>
+        <ul class="opcoes-lista">
+          <li class="opcao-item">
+            <label for="opt-bonus">
+              <span class="opcao-nome">🎁 Palavra secreta</span>
+              <span class="opcao-desc">Esconde uma palavra extra fora da lista (vale no próximo jogo).</span>
+            </label>
+            <input type="checkbox" id="opt-bonus" class="interruptor" />
+          </li>
+          <li class="opcao-item">
+            <label for="opt-som">
+              <span class="opcao-nome">🔊 Efeitos sonoros</span>
+              <span class="opcao-desc">Sons de seleção, acerto, erro e vitória.</span>
+            </label>
+            <input type="checkbox" id="opt-som" class="interruptor" />
+          </li>
+          <li class="opcao-item">
+            <label for="opt-animacoes">
+              <span class="opcao-nome">🎬 Animações</span>
+              <span class="opcao-desc">Fundo animado, confete e efeitos das letras.</span>
+            </label>
+            <input type="checkbox" id="opt-animacoes" class="interruptor" />
+          </li>
+          <li class="opcao-item">
+            <label for="opt-cronometro">
+              <span class="opcao-nome">⏱️ Mostrar cronômetro</span>
+              <span class="opcao-desc">Desligue para jogar sem olhar o relógio (no Contra o Relógio ele continua visível).</span>
+            </label>
+            <input type="checkbox" id="opt-cronometro" class="interruptor" />
+          </li>
+        </ul>
+      </div>
+
+      <div class="modal-acoes">
+        <button id="btn-zerar-recordes" class="btn btn-fantasma">🗑️ Apagar recordes</button>
+        <button id="btn-fechar-opcoes" class="btn btn-primario">Pronto! 👍</button>
       </div>
     </div>
   </div>
@@ -98,10 +175,12 @@
         <li>🖱️ <strong>Arraste</strong> (mouse ou dedo) da primeira até a última letra de uma palavra.</li>
         <li>🧭 As palavras podem estar na <strong>horizontal, vertical, diagonal</strong> — e até de <strong>trás pra frente</strong>!</li>
         <li>🎯 Quanto <strong>maior a dificuldade</strong>, maior a grade e mais direções escondidas.</li>
+        <li>🎮 Escolha um <strong>modo de jogo</strong>: Clássico, ⏳ Contra o Relógio, 🧘 Zen ou 🕶️ Às Cegas — cada um vale uma pontuação diferente.</li>
         <li>🔥 Ache palavras em <strong>sequência</strong> sem errar para ganhar bônus de pontos.</li>
-        <li>💡 Sem ideia? Use uma <strong>dica</strong> — mas custa 15 pontos.</li>
+        <li>💡 Sem ideia? Use uma <strong>dica</strong> — mas custa 15 pontos (no Zen é de graça).</li>
+        <li>🎁 Há uma <strong>palavra secreta</strong> escondida fora da lista: ache para ganhar pontos extra.</li>
         <li>🔍 No celular, dê <strong>zoom com dois dedos</strong> se quiser ver as letras maiores.</li>
-        <li>⚡ Termine rápido para ganhar um grande <strong>bônus de tempo</strong> no final!</li>
+        <li>⚙️ Em <strong>Opções</strong> dá para trocar o tema visual e ligar/desligar os extras.</li>
       </ul>
       <div class="modal-acoes">
         <button id="btn-fechar-ajuda" class="btn btn-primario">Entendi! 👍</button>
@@ -109,8 +188,8 @@
     </div>
   </div>
 
-  <script src="js/words.js?v=7"></script>
-  <script src="js/audio.js?v=7"></script>
-  <script src="js/game.js?v=7"></script>
+  <script src="js/words.js?v=8"></script>
+  <script src="js/audio.js?v=8"></script>
+  <script src="js/game.js?v=8"></script>
 </body>
 </html>

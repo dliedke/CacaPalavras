@@ -8,12 +8,57 @@
   "use strict";
 
   /* ----------------------------- Configurações ---------------------------- */
+  // "segundos" é o tempo inicial do modo Contra o Relógio.
   const DIFICULDADES = {
-    facil:   { nome: "Fácil",   grid: 10, palavras: 6,  dirs: 2, maxLen: 8,  tempoBonus: 1.0 },
-    medio:   { nome: "Médio",   grid: 12, palavras: 9,  dirs: 4, maxLen: 10, tempoBonus: 1.3 },
-    dificil: { nome: "Difícil", grid: 14, palavras: 12, dirs: 8, maxLen: 12, tempoBonus: 1.7 },
-    expert:  { nome: "Expert",  grid: 16, palavras: 16, dirs: 8, maxLen: 14, tempoBonus: 2.2 },
+    facil:   { nome: "Fácil",   emoji: "😃", grid: 10, palavras: 6,  dirs: 2, maxLen: 8,  tempoBonus: 1.0, segundos: 150 },
+    medio:   { nome: "Médio",   emoji: "🙂", grid: 12, palavras: 9,  dirs: 4, maxLen: 10, tempoBonus: 1.3, segundos: 195 },
+    dificil: { nome: "Difícil", emoji: "😎", grid: 14, palavras: 12, dirs: 8, maxLen: 12, tempoBonus: 1.7, segundos: 255 },
+    expert:  { nome: "Expert",  emoji: "🤯", grid: 16, palavras: 16, dirs: 8, maxLen: 14, tempoBonus: 2.2, segundos: 315 },
   };
+
+  // Modos de jogo. Cada um muda as regras do relógio, do erro e da lista, e
+  // tem seu próprio multiplicador de pontos (quanto mais difícil, mais vale).
+  //   regressivo      → o relógio conta para trás e zerar significa derrota
+  //   semRelogio      → sem cronômetro nenhum (e sem bônus de tempo no final)
+  //   mostraPalavras  → false esconde as palavras da lista (só a 1ª letra)
+  //   penalizaErro    → false mantém a sequência mesmo errando
+  //   dicaGratis      → dica não custa pontos nem zera a sequência
+  const MODOS = {
+    classico: {
+      nome: "Clássico", emoji: "🎯",
+      dica: "Sem pressa: o relógio só conta quanto você demorou.",
+      mult: 1.0, regressivo: false, semRelogio: false,
+      mostraPalavras: true, penalizaErro: true, dicaGratis: false,
+    },
+    relogio: {
+      nome: "Contra o Relógio", emoji: "⏳",
+      dica: "Corra! Cada palavra achada devolve segundos ao relógio.",
+      mult: 1.6, regressivo: true, semRelogio: false,
+      mostraPalavras: true, penalizaErro: true, dicaGratis: false,
+      segundosPorPalavra: 10, segundosPorBonus: 25,
+    },
+    zen: {
+      nome: "Zen", emoji: "🧘",
+      dica: "Sem relógio, sem castigo por errar e dicas de graça.",
+      mult: 0.6, regressivo: false, semRelogio: true,
+      mostraPalavras: true, penalizaErro: false, dicaGratis: true,
+    },
+    cegas: {
+      nome: "Às Cegas", emoji: "🕶️",
+      dica: "A lista esconde as palavras: só a primeira letra aparece.",
+      mult: 2.0, regressivo: false, semRelogio: false,
+      mostraPalavras: false, penalizaErro: true, dicaGratis: false,
+    },
+  };
+
+  // Temas visuais — as cores de cada um vivem no CSS, em body[data-tema].
+  const TEMAS = [
+    { id: "turbo",    nome: "Turbo",      emoji: "🟣" },
+    { id: "oceano",   nome: "Oceano",     emoji: "🌊" },
+    { id: "doce",     nome: "Doce",       emoji: "🍭" },
+    { id: "floresta", nome: "Floresta",   emoji: "🌿" },
+    { id: "noite",    nome: "Meia-noite", emoji: "🌙" },
+  ];
 
   // Direções: [dLinha, dColuna]. As primeiras são as mais fáceis.
   //  →  ↓  ↘  ↗   ←  ↑  ↖  ↙
@@ -39,26 +84,79 @@
   const estado = {
     dificuldade: "medio",
     categoria: "Todas",
+    modo: "classico",
     tamanho: 12,
     grade: [],           // matriz de letras
-    solucoes: [],        // {palavra, exibicao, celulas:[{l,c}], achado, cor}
+    solucoes: [],        // {palavra, exibicao, celulas:[{l,c}], achado, revelado, cor}
     bonus: null,          // palavra secreta oculta: {palavra, exibicao, celulas, achado} ou null
     achadas: 0,
     pontos: 0,
     sequencia: 0,
     inicio: 0,
+    fimTempo: 0,         // instante em que o tempo acaba (só no modo regressivo)
     timerId: null,
     jogando: false,
     dicasUsadas: 0,
   };
 
+  function modoAtual() {
+    return MODOS[estado.modo] || MODOS.classico;
+  }
+
+  /* --------------------------- Opções do jogador --------------------------- */
+  // Preferências salvas no navegador: tema, extras e a última partida escolhida.
+  const CHAVE_OPCOES = "cacapalavras.opcoes.v1";
+
+  const OPCOES_PADRAO = {
+    tema: "turbo",
+    bonus: true,        // esconder a palavra secreta extra
+    som: true,
+    animacoes: true,
+    cronometro: true,   // mostrar o cronômetro nos modos sem contagem regressiva
+    modo: "classico",
+    dificuldade: "medio",
+    categoria: "Todas",
+  };
+
+  function carregarOpcoes() {
+    let salvas = {};
+    try {
+      salvas = JSON.parse(localStorage.getItem(CHAVE_OPCOES)) || {};
+    } catch (e) {
+      salvas = {};
+    }
+    const o = Object.assign({}, OPCOES_PADRAO, salvas);
+    // Descarta valores que não existem mais (ex.: tema/modo removido).
+    if (!TEMAS.some((t) => t.id === o.tema)) o.tema = OPCOES_PADRAO.tema;
+    if (!MODOS[o.modo]) o.modo = OPCOES_PADRAO.modo;
+    if (!DIFICULDADES[o.dificuldade]) o.dificuldade = OPCOES_PADRAO.dificuldade;
+    return o;
+  }
+
+  function salvarOpcoes() {
+    try {
+      localStorage.setItem(CHAVE_OPCOES, JSON.stringify(opcoes));
+    } catch (e) {
+      /* localStorage indisponível (ex.: modo privado) — vale só nesta sessão. */
+    }
+  }
+
+  const opcoes = carregarOpcoes();
+
   /* --------------------------- Recorde persistente ------------------------- */
-  // Guarda a melhor pontuação de cada dificuldade no navegador do jogador.
-  const CHAVE_RECORDES = "cacapalavras.recordes.v1";
+  // Guarda a melhor pontuação de cada combinação dificuldade + modo de jogo.
+  const CHAVE_RECORDES = "cacapalavras.recordes.v2";
+  const CHAVE_RECORDES_ANTIGA = "cacapalavras.recordes.v1";
 
   function carregarRecordes() {
     try {
-      return JSON.parse(localStorage.getItem(CHAVE_RECORDES)) || {};
+      const novos = JSON.parse(localStorage.getItem(CHAVE_RECORDES));
+      if (novos) return novos;
+      // Migração: os recordes antigos eram só por dificuldade, no Clássico.
+      const antigos = JSON.parse(localStorage.getItem(CHAVE_RECORDES_ANTIGA)) || {};
+      const migrados = {};
+      for (const dif of Object.keys(antigos)) migrados[dif + "|classico"] = antigos[dif];
+      return migrados;
     } catch (e) {
       return {};
     }
@@ -72,10 +170,14 @@
     }
   }
 
-  const recordes = carregarRecordes(); // { [dificuldade]: { pontos, tempo } }
+  const recordes = carregarRecordes(); // { "dificuldade|modo": { pontos, tempo } }
+
+  function chaveRecorde() {
+    return estado.dificuldade + "|" + estado.modo;
+  }
 
   function recordeAtual() {
-    const r = recordes[estado.dificuldade];
+    const r = recordes[chaveRecorde()];
     return r ? r.pontos : 0;
   }
 
@@ -186,15 +288,17 @@
   // Gera uma grade a partir de um "fornecedor" de candidatas.
   // fornecerCandidatas() é chamado a cada tentativa e deve devolver a lista
   // de palavras {norm, exibicao} a posicionar.
-  function gerarGradeCom(fornecerCandidatas, opcoes) {
+  // "ajustes" é a configuração da geração (não confundir com as preferências
+  // do jogador, que ficam no objeto global `opcoes`).
+  function gerarGradeCom(fornecerCandidatas, ajustes) {
     const conf = DIFICULDADES[estado.dificuldade];
     estado.tamanho = conf.grid;
     const tamanho = conf.grid;
     const dirsPermitidas = TODAS_DIRECOES.slice(0, conf.dirs);
-    const maxTentativas = (opcoes && opcoes.tentativas) || 25;
+    const maxTentativas = (ajustes && ajustes.tentativas) || 25;
     const minObrigatorio =
-      opcoes && opcoes.minObrigatorio != null
-        ? opcoes.minObrigatorio
+      ajustes && ajustes.minObrigatorio != null
+        ? ajustes.minObrigatorio
         : Math.min(conf.palavras, 4);
 
     // Tenta gerar uma grade válida algumas vezes.
@@ -214,6 +318,7 @@
             exibicao: cand.exibicao,
             celulas: res.celulas,
             achado: false,
+            revelado: false, // no modo Às Cegas, mostra a palavra na lista
             cor: null,
           });
         }
@@ -221,7 +326,9 @@
 
       if (solucoes.length >= minObrigatorio) {
         // Tenta esconder uma palavra bônus extra (best-effort, pode falhar).
-        const bonus = tentarColocarBonus(grade, solucoes, dirsPermitidas, tamanho, conf);
+        const bonus = opcoes.bonus
+          ? tentarColocarBonus(grade, solucoes, dirsPermitidas, tamanho, conf)
+          : null;
 
         // Preenche vazios com letras aleatórias.
         for (let l = 0; l < tamanho; l++)
@@ -301,17 +408,26 @@
     });
   }
 
+  // Modo Às Cegas: mostra só a primeira letra e um ponto por letra escondida.
+  function mascarar(exibicao) {
+    return exibicao.charAt(0) + " " + "•".repeat(Math.max(0, exibicao.length - 1));
+  }
+
   function renderLista() {
     listaEl.innerHTML = "";
     // ordena por tamanho para uma lista bonita
     const ordenadas = estado.solucoes
       .map((s, i) => ({ s, i }))
       .sort((a, b) => a.s.exibicao.localeCompare(b.s.exibicao));
+    const escondeLista = !modoAtual().mostraPalavras;
     for (const { s, i } of ordenadas) {
       const li = document.createElement("li");
-      li.className = "palavra-item" + (s.achado ? " achado" : "");
+      const oculta = escondeLista && !s.achado && !s.revelado;
+      li.className =
+        "palavra-item" + (s.achado ? " achado" : "") + (oculta ? " oculta" : "");
       li.dataset.idx = i;
-      li.textContent = s.exibicao;
+      li.textContent = oculta ? mascarar(s.exibicao) : s.exibicao;
+      if (oculta) li.title = `Palavra de ${s.exibicao.length} letras`;
       if (s.achado && s.cor) li.style.setProperty("--cor-item", s.cor);
       listaEl.appendChild(li);
     }
@@ -510,7 +626,7 @@
 
     // Não achou nada
     SoundFX.error();
-    estado.sequencia = 0;
+    if (modoAtual().penalizaErro) estado.sequencia = 0;
     atualizarPlacar();
     piscarErro();
   }
@@ -528,12 +644,17 @@
     estado.achadas++;
     estado.sequencia++;
 
-    // Pontuação: base pelo tamanho + bônus de sequência + bônus de dificuldade.
+    // Pontuação: base pelo tamanho + bônus de sequência + bônus de dificuldade
+    // + multiplicador do modo de jogo.
     const conf = DIFICULDADES[estado.dificuldade];
+    const modo = modoAtual();
     const base = sol.palavra.length * 10;
     const bonusSeq = (estado.sequencia - 1) * 5;
-    const ganho = Math.round((base + bonusSeq) * conf.tempoBonus);
+    const ganho = Math.round((base + bonusSeq) * conf.tempoBonus * modo.mult);
     estado.pontos += ganho;
+
+    // Contra o Relógio: cada palavra devolve segundos ao cronômetro.
+    if (modo.regressivo && modo.segundosPorPalavra) ganharTempo(modo.segundosPorPalavra);
 
     for (const { l, c } of sol.celulas) {
       const cel = celulasEl[l][c];
@@ -553,16 +674,25 @@
     }
   }
 
-  function mostrarGanho(valor, bonus) {
+  // Texto que sobe e some, ancorado em algum elemento da tela.
+  function mostrarFlutuante(texto, classe, alvo) {
     const flut = document.createElement("div");
-    flut.className = "ganho-flutuante" + (bonus ? " bonus" : "");
-    flut.textContent = (bonus ? "🎁 +" : "+") + valor;
-    const alvo = celulasSelecionadas[0] || gridEl;
-    const rect = (alvo.getBoundingClientRect ? alvo : gridEl).getBoundingClientRect();
+    flut.className = "ganho-flutuante" + (classe ? " " + classe : "");
+    flut.textContent = texto;
+    const el = alvo && alvo.getBoundingClientRect ? alvo : gridEl;
+    const rect = el.getBoundingClientRect();
     flut.style.left = rect.left + rect.width / 2 + "px";
     flut.style.top = rect.top + "px";
     document.body.appendChild(flut);
     setTimeout(() => flut.remove(), 1000);
+  }
+
+  function mostrarGanho(valor, bonus) {
+    mostrarFlutuante(
+      (bonus ? "🎁 +" : "+") + valor,
+      bonus ? "bonus" : "",
+      celulasSelecionadas[0]
+    );
   }
 
   // Palavra secreta encontrada: pontos extra + celebração própria, mas não
@@ -572,8 +702,11 @@
     bonus.achado = true;
 
     const conf = DIFICULDADES[estado.dificuldade];
-    const ganho = Math.round((bonus.palavra.length * 15 + 40) * conf.tempoBonus);
+    const modo = modoAtual();
+    const ganho = Math.round((bonus.palavra.length * 15 + 40) * conf.tempoBonus * modo.mult);
     estado.pontos += ganho;
+
+    if (modo.regressivo && modo.segundosPorBonus) ganharTempo(modo.segundosPorBonus);
 
     for (const { l, c } of bonus.celulas) {
       const cel = celulasEl[l][c];
@@ -605,17 +738,71 @@
   }
 
   function formatarTempo(ms) {
-    const s = Math.floor(ms / 1000);
+    const s = Math.round(ms / 1000);
     const m = Math.floor(s / 60);
     return `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
   }
 
+  function tempoDecorrido() {
+    return Date.now() - estado.inicio;
+  }
+
+  // Milissegundos que ainda restam no modo regressivo (0 nos outros modos).
+  function tempoRestante() {
+    if (!modoAtual().regressivo) return 0;
+    return Math.max(0, estado.fimTempo - Date.now());
+  }
+
+  let ultimoBipe = -1; // último segundo em que tocou o bipe da contagem
+
   function iniciarTimer() {
+    const modo = modoAtual();
     estado.inicio = Date.now();
-    if (estado.timerId) clearInterval(estado.timerId);
-    estado.timerId = setInterval(() => {
-      tempoEl.textContent = formatarTempo(Date.now() - estado.inicio);
-    }, 500);
+    estado.fimTempo = modo.regressivo
+      ? estado.inicio + DIFICULDADES[estado.dificuldade].segundos * 1000
+      : 0;
+    ultimoBipe = -1;
+    pararTimer();
+    atualizarTempo();
+    // O modo Zen não tem relógio nenhum: nada para atualizar.
+    if (modo.semRelogio) return;
+    estado.timerId = setInterval(atualizarTempo, 250);
+  }
+
+  function atualizarTempo() {
+    const modo = modoAtual();
+
+    if (modo.semRelogio) {
+      tempoEl.textContent = "∞";
+      tempoEl.classList.remove("perigo");
+      return;
+    }
+
+    if (modo.regressivo) {
+      const restante = tempoRestante();
+      tempoEl.textContent = formatarTempo(restante);
+      const seg = Math.ceil(restante / 1000);
+      tempoEl.classList.toggle("perigo", seg <= 20);
+      // Bipe nos últimos 5 segundos (uma vez por segundo).
+      if (estado.jogando && seg > 0 && seg <= 5 && seg !== ultimoBipe) {
+        ultimoBipe = seg;
+        SoundFX.tique();
+      }
+      if (restante <= 0 && estado.jogando) derrota();
+      return;
+    }
+
+    // Cronômetro normal, que o jogador pode esconder nas opções.
+    tempoEl.textContent = opcoes.cronometro ? formatarTempo(tempoDecorrido()) : "⏱️";
+    tempoEl.classList.remove("perigo");
+  }
+
+  // Contra o Relógio: soma segundos e mostra o ganho flutuando na grade.
+  function ganharTempo(segundos) {
+    estado.fimTempo += segundos * 1000;
+    SoundFX.tempoExtra();
+    mostrarFlutuante("+" + segundos + "s", "tempo", tempoEl);
+    atualizarTempo();
   }
 
   function pararTimer() {
@@ -629,9 +816,16 @@
     const naoAchadas = estado.solucoes.filter((s) => !s.achado);
     if (!naoAchadas.length) return;
     const sol = naoAchadas[(Math.random() * naoAchadas.length) | 0];
+    const modo = modoAtual();
     estado.dicasUsadas++;
-    estado.pontos = Math.max(0, estado.pontos - 15);
-    estado.sequencia = 0;
+    // No Zen a dica é de graça e não quebra a sequência.
+    if (!modo.dicaGratis) {
+      estado.pontos = Math.max(0, estado.pontos - 15);
+      estado.sequencia = 0;
+    }
+    // No modo Às Cegas a dica também revela a palavra na lista.
+    if (!modo.mostraPalavras) sol.revelado = true;
+    renderLista();
     atualizarPlacar();
     SoundFX.hint();
 
@@ -665,29 +859,47 @@
   }
 
   /* ------------------------------ Vitória --------------------------------- */
+  // Bônus final de pontos, calculado conforme o relógio de cada modo.
+  function calcularBonusFinal(tempo) {
+    const conf = DIFICULDADES[estado.dificuldade];
+    const modo = modoAtual();
+    // Zen não tem relógio, então também não tem bônus de tempo.
+    if (modo.semRelogio) return 0;
+    // Contra o Relógio: cada segundo que sobrou no cronômetro vale pontos.
+    if (modo.regressivo) {
+      const restante = Math.round(tempoRestante() / 1000);
+      return Math.round(restante * 4 * conf.tempoBonus * modo.mult);
+    }
+    // Demais modos: quanto mais rápido terminar, maior o bônus.
+    const bonusTempo = Math.max(0, Math.round((300000 - tempo) / 1000));
+    return Math.round(bonusTempo * conf.tempoBonus * modo.mult);
+  }
+
   function vitoria() {
     estado.jogando = false;
     pararTimer();
+    tempoEl.classList.remove("perigo");
     SoundFX.win();
     lancarConfete();
 
-    const tempo = Date.now() - estado.inicio;
-    // Bônus de tempo e de dificuldade final.
-    const conf = DIFICULDADES[estado.dificuldade];
-    const bonusTempo = Math.max(0, Math.round((300000 - tempo) / 1000)) ;
-    const bonusFinal = Math.round(bonusTempo * conf.tempoBonus);
+    const tempo = tempoDecorrido();
+    const bonusFinal = calcularBonusFinal(tempo);
     estado.pontos += bonusFinal;
 
-    // Verifica e salva novo recorde para a dificuldade atual.
+    // Verifica e salva novo recorde para esta dificuldade + modo.
     const novoRecorde = estado.pontos > recordeAtual();
     if (novoRecorde) {
-      recordes[estado.dificuldade] = { pontos: estado.pontos, tempo };
+      recordes[chaveRecorde()] = { pontos: estado.pontos, tempo };
       salvarRecordes();
       setTimeout(() => SoundFX.recorde(), 550);
     }
     atualizarPlacar();
 
+    const conf = DIFICULDADES[estado.dificuldade];
+    const modo = modoAtual();
     const modal = $("#modal-vitoria");
+    $("#vit-sub").textContent =
+      `${modo.emoji} ${modo.nome} • ${conf.emoji} ${conf.nome}`;
     $("#vit-pontos").textContent = estado.pontos;
     $("#vit-tempo").textContent = formatarTempo(tempo);
     $("#vit-palavras").textContent = estado.solucoes.length;
@@ -697,8 +909,38 @@
     modal.classList.add("aberto");
   }
 
+  /* ------------------------------ Derrota --------------------------------- */
+  // Só acontece no modo Contra o Relógio, quando o cronômetro zera.
+  function derrota() {
+    estado.jogando = false;
+    pararTimer();
+    tempoEl.textContent = "00:00";
+    tempoEl.classList.remove("perigo");
+    limparDica();
+    SoundFX.derrota();
+    revelarNaoAchadas();
+
+    $("#der-pontos").textContent = estado.pontos;
+    $("#der-achadas").textContent = `${estado.achadas}/${estado.solucoes.length}`;
+    $("#modal-derrota").classList.add("aberto");
+  }
+
+  // Mostra na grade (e na lista) as palavras que o jogador não encontrou.
+  function revelarNaoAchadas() {
+    for (const sol of estado.solucoes) {
+      if (sol.achado) continue;
+      sol.revelado = true;
+      for (const { l, c } of sol.celulas) celulasEl[l][c].classList.add("revelada");
+    }
+    if (estado.bonus && !estado.bonus.achado) {
+      for (const { l, c } of estado.bonus.celulas) celulasEl[l][c].classList.add("revelada");
+    }
+    renderLista();
+  }
+
   /* ------------------------------ Confete --------------------------------- */
   function lancarConfete() {
+    if (!opcoes.animacoes) return; // jogador desligou as animações
     const cores = ["#ff5d8f", "#ffd23f", "#8ac926", "#4cc9f0", "#7b2ff7", "#ff9f1c", "#00f5d4"];
     const total = 140;
     const cont = document.createElement("div");
@@ -721,7 +963,8 @@
   }
 
   /* --------------------------- Novo jogo / fluxo -------------------------- */
-  function novoJogo() {
+  // Zera tudo o que é da rodada anterior (comum a "Novo jogo" e "Trocar").
+  function prepararRodada() {
     SoundFX.unlock();
     fecharModais();
     limparDica();
@@ -730,7 +973,22 @@
     estado.sequencia = 0;
     estado.dicasUsadas = 0;
     estado.bonus = null;
+    estado.fimTempo = 0;
     estado.jogando = true;
+    tempoEl.classList.remove("perigo");
+  }
+
+  // Coloca a rodada recém-gerada na tela e liga o relógio do modo atual.
+  function comecarRodada() {
+    renderGrade();
+    renderLista();
+    atualizarPlacar();
+    iniciarTimer();
+    SoundFX.start();
+  }
+
+  function novoJogo() {
+    prepararRodada();
 
     const ok = gerarGrade();
     if (!ok) {
@@ -741,41 +999,130 @@
       estado.categoria = catAntiga;
     }
 
-    renderGrade();
-    renderLista();
-    atualizarPlacar();
-    tempoEl.textContent = "00:00";
-    iniciarTimer();
-    SoundFX.start();
+    comecarRodada();
   }
 
   // "Trocar": mantém as mesmas palavras da rodada, mas embaralha as posições
   // na grade e zera o progresso. Se ainda não houver rodada, começa uma nova.
   function trocarDisposicao() {
     if (!estado.solucoes.length) { novoJogo(); return; }
-    SoundFX.unlock();
-    fecharModais();
-    limparDica();
-    estado.achadas = 0;
-    estado.pontos = 0;
-    estado.sequencia = 0;
-    estado.dicasUsadas = 0;
-    estado.bonus = null;
-    estado.jogando = true;
+    prepararRodada();
 
     const ok = gerarGradeMesmasPalavras();
     if (!ok) { novoJogo(); return; }
 
-    renderGrade();
-    renderLista();
-    atualizarPlacar();
-    tempoEl.textContent = "00:00";
-    iniciarTimer();
-    SoundFX.start();
+    comecarRodada();
   }
 
   function fecharModais() {
     document.querySelectorAll(".modal.aberto").forEach((m) => m.classList.remove("aberto"));
+  }
+
+  /* -------------------------- Modos e aparência --------------------------- */
+  // Botões de modo de jogo, montados a partir de MODOS.
+  function preencherModos() {
+    const cont = $("#modos");
+    for (const id of Object.keys(MODOS)) {
+      const modo = MODOS[id];
+      const btn = document.createElement("button");
+      btn.className = "modo-btn";
+      btn.dataset.modo = id;
+      btn.title = modo.dica;
+      btn.innerHTML =
+        `<span class="modo-emoji">${modo.emoji}</span>` +
+        `<span class="modo-nome">${modo.nome}</span>` +
+        `<span class="modo-mult">${modo.mult.toFixed(1)}x</span>`;
+      btn.addEventListener("click", () => {
+        if (estado.modo === id) return;
+        SoundFX.click();
+        estado.modo = id;
+        opcoes.modo = id;
+        salvarOpcoes();
+        marcarModoAtivo();
+        novoJogo();
+      });
+      cont.appendChild(btn);
+    }
+    marcarModoAtivo();
+  }
+
+  function marcarModoAtivo() {
+    document.querySelectorAll(".modo-btn").forEach((b) =>
+      b.classList.toggle("ativo", b.dataset.modo === estado.modo)
+    );
+    $("#modo-dica").textContent = modoAtual().dica;
+    atualizarBotaoDica();
+  }
+
+  // O rótulo do botão de dica muda quando ela é de graça (modo Zen).
+  function atualizarBotaoDica() {
+    const custo = $("#btn-dica").querySelector("small");
+    if (custo) custo.textContent = modoAtual().dicaGratis ? "(grátis)" : "(-15)";
+  }
+
+  // Chips de tema visual dentro do modal de opções.
+  function preencherTemas() {
+    const cont = $("#temas");
+    for (const tema of TEMAS) {
+      const btn = document.createElement("button");
+      btn.className = "tema-btn";
+      btn.dataset.tema = tema.id;
+      btn.innerHTML = `<span class="tema-emoji">${tema.emoji}</span> ${tema.nome}`;
+      btn.addEventListener("click", () => {
+        SoundFX.click();
+        opcoes.tema = tema.id;
+        salvarOpcoes();
+        aplicarTema();
+      });
+      cont.appendChild(btn);
+    }
+    aplicarTema();
+  }
+
+  function aplicarTema() {
+    document.body.dataset.tema = opcoes.tema;
+    document.querySelectorAll(".tema-btn").forEach((b) =>
+      b.classList.toggle("ativo", b.dataset.tema === opcoes.tema)
+    );
+  }
+
+  // Aplica as opções que mudam a aparência/comportamento imediatamente.
+  function aplicarOpcoes() {
+    aplicarTema();
+    document.body.classList.toggle("sem-animacao", !opcoes.animacoes);
+    SoundFX.setMuted(!opcoes.som);
+    const btnMudo = $("#btn-mudo");
+    btnMudo.textContent = opcoes.som ? "🔊" : "🔇";
+    btnMudo.classList.toggle("mutado", !opcoes.som);
+    if (estado.jogando) atualizarTempo();
+  }
+
+  // Liga os interruptores do modal de opções ao objeto de preferências.
+  function ligarOpcoes() {
+    const campos = [
+      ["#opt-bonus", "bonus"],
+      ["#opt-som", "som"],
+      ["#opt-animacoes", "animacoes"],
+      ["#opt-cronometro", "cronometro"],
+    ];
+    for (const [sel, chave] of campos) {
+      const campo = $(sel);
+      campo.checked = !!opcoes[chave];
+      campo.addEventListener("change", () => {
+        opcoes[chave] = campo.checked;
+        salvarOpcoes();
+        aplicarOpcoes();
+        if (opcoes.som) SoundFX.click();
+      });
+    }
+
+    $("#btn-zerar-recordes").addEventListener("click", () => {
+      SoundFX.click();
+      for (const chave of Object.keys(recordes)) delete recordes[chave];
+      salvarRecordes();
+      atualizarPlacar();
+      mostrarFlutuante("Recordes apagados!", "tempo", $("#btn-zerar-recordes"));
+    });
   }
 
   /* --------------------------- Preencher menus ---------------------------- */
@@ -814,9 +1161,17 @@
     $("#btn-jogar-novamente").addEventListener("click", () => { SoundFX.click(); novoJogo(); });
     $("#btn-fechar-modal").addEventListener("click", () => { SoundFX.click(); fecharModais(); });
 
+    // Derrota (tempo esgotado)
+    $("#btn-tentar-novamente").addEventListener("click", () => { SoundFX.click(); novoJogo(); });
+    $("#btn-fechar-derrota").addEventListener("click", () => { SoundFX.click(); fecharModais(); });
+
     // Ajuda
     $("#btn-ajuda").addEventListener("click", () => { SoundFX.click(); $("#modal-ajuda").classList.add("aberto"); });
     $("#btn-fechar-ajuda").addEventListener("click", () => { SoundFX.click(); fecharModais(); });
+
+    // Opções
+    $("#btn-opcoes").addEventListener("click", () => { SoundFX.click(); $("#modal-opcoes").classList.add("aberto"); });
+    $("#btn-fechar-opcoes").addEventListener("click", () => { SoundFX.click(); fecharModais(); });
 
     // Mudança de dificuldade / categoria
     document.querySelectorAll(".dif-btn").forEach((btn) => {
@@ -825,23 +1180,26 @@
         document.querySelectorAll(".dif-btn").forEach((b) => b.classList.remove("ativo"));
         btn.classList.add("ativo");
         estado.dificuldade = btn.dataset.dif;
+        opcoes.dificuldade = estado.dificuldade;
+        salvarOpcoes();
         novoJogo();
       });
     });
 
     $("#sel-categoria").addEventListener("change", (e) => {
       estado.categoria = e.target.value;
+      opcoes.categoria = estado.categoria;
+      salvarOpcoes();
       novoJogo();
     });
 
-    // Mudo
-    const btnMudo = $("#btn-mudo");
-    btnMudo.addEventListener("click", () => {
-      const novo = !SoundFX.isMuted();
-      SoundFX.setMuted(novo);
-      btnMudo.textContent = novo ? "🔇" : "🔊";
-      btnMudo.classList.toggle("mutado", novo);
-      if (!novo) SoundFX.click();
+    // Mudo (mantém o interruptor das opções em sincronia)
+    $("#btn-mudo").addEventListener("click", () => {
+      opcoes.som = SoundFX.isMuted();
+      salvarOpcoes();
+      $("#opt-som").checked = opcoes.som;
+      aplicarOpcoes();
+      if (opcoes.som) SoundFX.click();
     });
 
     // Fechar modal clicando no fundo
@@ -863,8 +1221,17 @@
 
   /* ------------------------------- Início --------------------------------- */
   function init() {
+    // Retoma o que o jogador escolheu da última vez.
+    estado.modo = opcoes.modo;
+    estado.dificuldade = opcoes.dificuldade;
+    if (WORD_BANK[opcoes.categoria]) estado.categoria = opcoes.categoria;
+
     preencherCategorias();
+    preencherModos();
+    preencherTemas();
+    ligarOpcoes();
     ligarEventos();
+    aplicarOpcoes();
     document.querySelectorAll(".dif-btn").forEach((b) =>
       b.classList.toggle("ativo", b.dataset.dif === estado.dificuldade)
     );
