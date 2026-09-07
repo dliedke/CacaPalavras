@@ -73,6 +73,10 @@ body {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-user-select: none;
+  /* Evita que o Android/iOS aumente sozinho o texto de listas/cards curtos
+     (o "font boosting" deixava a lista de ajuda desproporcional no celular). */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* -------------------------- Fundo animado ------------------------------- */
@@ -611,6 +615,12 @@ body {
   padding: 30px;
   max-width: 480px;
   width: 100%;
+  /* Trava a altura do cartão e rola só o conteúdo dele — sem isso, um modal
+     com muito conteúdo (a lista de "Como jogar", por ex.) empurrava a
+     página inteira e ficava confuso de rolar no celular. */
+  max-height: min(640px, 88vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   animation: entra 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
@@ -759,15 +769,15 @@ body {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin: 8px 0 22px;
+  gap: 8px;
+  margin: 8px 0 18px;
 }
 .ajuda-lista li {
   background: rgba(255, 255, 255, 0.06);
-  padding: 12px 14px;
-  border-radius: 12px;
-  font-size: 0.92rem;
-  line-height: 1.4;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.32;
 }
 
 /* ------------------------------ Confete --------------------------------- */
@@ -820,7 +830,8 @@ body {
   .placar-item { padding: 6px 12px; min-width: 68px; }
   .placar-valor { font-size: 1.1rem; }
   .stats-vitoria { grid-template-columns: 1fr 1fr; }
-  .modal-caixa { padding: 22px; }
+  .modal-caixa { padding: 22px; max-height: 84vh; }
+  .ajuda-lista li { font-size: 0.8rem; padding: 8px 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
