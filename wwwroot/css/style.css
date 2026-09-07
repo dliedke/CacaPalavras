@@ -451,7 +451,24 @@ body {
 }
 
 /* --------------------------- Lista de palavras -------------------------- */
-.lista-titulo { font-size: 1.1rem; margin-bottom: 12px; }
+.lista-titulo {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* Categoria da rodada: todas as palavras saem sempre de um grupo só. */
+.categoria-rodada {
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--roxo), var(--rosa));
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  white-space: nowrap;
+}
 .lista-palavras {
   list-style: none;
   display: flex;

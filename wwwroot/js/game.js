@@ -9,11 +9,14 @@
 
   /* ----------------------------- Configurações ---------------------------- */
   // "segundos" é o tempo inicial do modo Contra o Relógio.
+  // "minDiagonais"/"minInvertidas" são cotas mínimas de direção por rodada: sem
+  // elas as diagonais ficavam raras (cabem em bem menos lugares que as retas, e
+  // o posicionamento aceitava a primeira direção que coubesse).
   const DIFICULDADES = {
-    facil:   { nome: "Fácil",   emoji: "😃", grid: 10, palavras: 6,  dirs: 2, maxLen: 8,  tempoBonus: 1.0, segundos: 150 },
-    medio:   { nome: "Médio",   emoji: "🙂", grid: 12, palavras: 9,  dirs: 4, maxLen: 10, tempoBonus: 1.3, segundos: 195 },
-    dificil: { nome: "Difícil", emoji: "😎", grid: 14, palavras: 12, dirs: 8, maxLen: 12, tempoBonus: 1.7, segundos: 255 },
-    expert:  { nome: "Expert",  emoji: "🤯", grid: 16, palavras: 16, dirs: 8, maxLen: 14, tempoBonus: 2.2, segundos: 315 },
+    facil:   { nome: "Fácil",   emoji: "😃", grid: 10, palavras: 6,  dirs: 2, maxLen: 8,  tempoBonus: 1.0, segundos: 150, minDiagonais: 0, minInvertidas: 0 },
+    medio:   { nome: "Médio",   emoji: "🙂", grid: 12, palavras: 9,  dirs: 4, maxLen: 10, tempoBonus: 1.3, segundos: 195, minDiagonais: 0, minInvertidas: 0 },
+    dificil: { nome: "Difícil", emoji: "😎", grid: 14, palavras: 12, dirs: 8, maxLen: 12, tempoBonus: 1.7, segundos: 255, minDiagonais: 3, minInvertidas: 3 },
+    expert:  { nome: "Expert",  emoji: "🤯", grid: 16, palavras: 16, dirs: 8, maxLen: 14, tempoBonus: 2.2, segundos: 315, minDiagonais: 5, minInvertidas: 5 },
   };
 
   // Modos de jogo. Cada um muda as regras do relógio, do erro e da lista, e
@@ -73,6 +76,16 @@
     [1, -1],  // diagonal ↙
   ];
 
+  // Diagonal = anda em linha e coluna ao mesmo tempo (↘ ↗ ↖ ↙).
+  function ehDiagonal(dir) {
+    return dir[0] !== 0 && dir[1] !== 0;
+  }
+
+  // Invertida = a palavra é lida "de trás pra frente" na grade (← ↑ ↖ ↙).
+  function ehInvertida(dir) {
+    return dir[1] < 0 || (dir[1] === 0 && dir[0] < 0);
+  }
+
   const ALFABETO = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const CORES_ACHADO = [
     "#ff5d8f", "#ff9f1c", "#ffd23f", "#8ac926", "#3aa0ff",
@@ -84,6 +97,7 @@
   const estado = {
     dificuldade: "medio",
     categoria: "Todas",
+    categoriaRodada: "Todas", // categoria efetiva da rodada (sorteada quando a escolha é "Todas")
     modo: "classico",
     tamanho: 12,
     grade: [],           // matriz de letras
@@ -211,9 +225,14 @@
   }
 
   /* -------------------------- Seleção de palavras ------------------------- */
-  function escolherPalavras(conf) {
-    const banco = WORD_BANK[estado.categoria] || WORD_BANK["Todas"];
-    // Candidatas: normalizadas, dentro do tamanho, únicas, com 3+ letras.
+  // Lista de categorias "de verdade" (sem a chave agregada "Todas").
+  function categoriasReais() {
+    return Object.keys(WORD_BANK).filter((c) => c !== "Todas");
+  }
+
+  // Palavras da categoria que cabem nesta dificuldade (tamanho e unicidade).
+  function candidatasDa(categoria, conf) {
+    const banco = WORD_BANK[categoria] || WORD_BANK["Todas"];
     const vistas = new Set();
     const candidatas = [];
     for (const original of embaralhar(banco)) {
@@ -224,8 +243,27 @@
       candidatas.push({ norm, exibicao: embelezar(original) });
       if (candidatas.length >= conf.palavras * 3) break;
     }
-    // Prioriza variedade de tamanhos: ordena por tamanho e intercala.
     return candidatas;
+  }
+
+  // Toda rodada usa palavras de UM único tema. Com a categoria "Todas", sorteia
+  // uma categoria por partida (só entre as que têm palavras suficientes para a
+  // dificuldade escolhida); com uma categoria fixa, é ela mesma.
+  function sortearCategoriaDaRodada(conf) {
+    if (estado.categoria !== "Todas") {
+      estado.categoriaRodada = estado.categoria;
+      return;
+    }
+    const viaveis = embaralhar(categoriasReais()).filter(
+      (cat) => candidatasDa(cat, conf).length >= conf.palavras
+    );
+    estado.categoriaRodada = viaveis.length
+      ? viaveis[(Math.random() * viaveis.length) | 0]
+      : "Todas"; // nenhuma categoria dá conta sozinha: volta a misturar tudo
+  }
+
+  function escolherPalavras(conf) {
+    return candidatasDa(estado.categoriaRodada || estado.categoria, conf);
   }
 
   /* --------------------------- Geração da grade --------------------------- */
@@ -251,23 +289,45 @@
     return celulas;
   }
 
-  function tentarColocar(grade, palavra, dirsPermitidas, tamanho) {
+  function tentarColocar(grade, palavra, dirsPermitidas, tamanho, maxTentativas) {
+    if (!dirsPermitidas.length) return null;
     const dirs = embaralhar(dirsPermitidas);
-    for (let tentativa = 0; tentativa < 120; tentativa++) {
+    const limite = maxTentativas || 120;
+    for (let tentativa = 0; tentativa < limite; tentativa++) {
       const dir = dirs[tentativa % dirs.length];
       const l = (Math.random() * tamanho) | 0;
       const c = (Math.random() * tamanho) | 0;
       if (podeColocar(grade, palavra, l, c, dir, tamanho)) {
-        return { celulas: colocar(grade, palavra, l, c, dir) };
+        return { celulas: colocar(grade, palavra, l, c, dir), dir };
       }
     }
     return null;
   }
 
+  // Coloca a palavra tentando primeiro as direções que a rodada ainda deve
+  // (diagonal/invertida). Se não couber em nenhuma delas, aceita qualquer uma
+  // das permitidas — a cota é um alvo, nunca um motivo para travar a geração.
+  function colocarComCota(grade, palavra, dirsPermitidas, tamanho, cota) {
+    let preferidas = [];
+    if (cota.diagonais > 0) preferidas = dirsPermitidas.filter(ehDiagonal);
+    else if (cota.invertidas > 0) preferidas = dirsPermitidas.filter(ehInvertida);
+
+    const res =
+      (preferidas.length && tentarColocar(grade, palavra, preferidas, tamanho, 80)) ||
+      tentarColocar(grade, palavra, dirsPermitidas, tamanho);
+
+    if (res) {
+      // Uma diagonal para trás (↖ ↙) abate as duas cotas de uma vez.
+      if (ehDiagonal(res.dir)) cota.diagonais--;
+      if (ehInvertida(res.dir)) cota.invertidas--;
+    }
+    return res;
+  }
+
   // Tenta esconder UMA palavra bônus extra na grade, fora da lista visível.
   // Não é obrigatória: se não achar espaço, o jogo segue normalmente sem ela.
   function tentarColocarBonus(grade, solucoes, dirsPermitidas, tamanho, conf) {
-    const banco = WORD_BANK[estado.categoria] || WORD_BANK["Todas"];
+    const banco = WORD_BANK[estado.categoriaRodada] || WORD_BANK[estado.categoria] || WORD_BANK["Todas"];
     const usadas = new Set(solucoes.map((s) => s.palavra));
     let tentativas = 0;
     for (const original of embaralhar(banco)) {
@@ -301,6 +361,10 @@
         ? ajustes.minObrigatorio
         : Math.min(conf.palavras, 4);
 
+    // Guarda a melhor grade que só não bateu as cotas de direção, para não
+    // deixar o jogador sem partida caso nenhuma tentativa consiga cumpri-las.
+    let reserva = null;
+
     // Tenta gerar uma grade válida algumas vezes.
     for (let global = 0; global < maxTentativas; global++) {
       const grade = Array.from({ length: tamanho }, () => Array(tamanho).fill(""));
@@ -308,10 +372,14 @@
       const candidatas = fornecerCandidatas();
       // Coloca as maiores primeiro (mais difíceis de encaixar).
       candidatas.sort((a, b) => b.norm.length - a.norm.length);
+      const cota = {
+        diagonais: conf.minDiagonais || 0,
+        invertidas: conf.minInvertidas || 0,
+      };
 
       for (const cand of candidatas) {
         if (solucoes.length >= conf.palavras) break;
-        const res = tentarColocar(grade, cand.norm, dirsPermitidas, tamanho);
+        const res = colocarComCota(grade, cand.norm, dirsPermitidas, tamanho, cota);
         if (res) {
           solucoes.push({
             palavra: cand.norm,
@@ -325,23 +393,34 @@
       }
 
       if (solucoes.length >= minObrigatorio) {
-        // Tenta esconder uma palavra bônus extra (best-effort, pode falhar).
-        const bonus = opcoes.bonus
-          ? tentarColocarBonus(grade, solucoes, dirsPermitidas, tamanho, conf)
-          : null;
-
-        // Preenche vazios com letras aleatórias.
-        for (let l = 0; l < tamanho; l++)
-          for (let c = 0; c < tamanho; c++)
-            if (grade[l][c] === "") grade[l][c] = letraAleatoria();
-
-        estado.grade = grade;
-        estado.solucoes = solucoes;
-        estado.bonus = bonus;
-        return true;
+        const cotasOk = cota.diagonais <= 0 && cota.invertidas <= 0;
+        if (cotasOk) return finalizarGrade(grade, solucoes, dirsPermitidas, tamanho, conf);
+        if (!reserva) reserva = { grade, solucoes };
       }
     }
+
+    if (reserva) {
+      return finalizarGrade(reserva.grade, reserva.solucoes, dirsPermitidas, tamanho, conf);
+    }
     return false;
+  }
+
+  // Fecha a grade: esconde a palavra bônus, completa os vazios com letras
+  // aleatórias e publica tudo no estado.
+  function finalizarGrade(grade, solucoes, dirsPermitidas, tamanho, conf) {
+    // Tenta esconder uma palavra bônus extra (best-effort, pode falhar).
+    const bonus = opcoes.bonus
+      ? tentarColocarBonus(grade, solucoes, dirsPermitidas, tamanho, conf)
+      : null;
+
+    for (let l = 0; l < tamanho; l++)
+      for (let c = 0; c < tamanho; c++)
+        if (grade[l][c] === "") grade[l][c] = letraAleatoria();
+
+    estado.grade = grade;
+    estado.solucoes = solucoes;
+    estado.bonus = bonus;
+    return true;
   }
 
   // Novo jogo: sorteia um conjunto novo de palavras da categoria atual.
@@ -373,6 +452,7 @@
   const tempoEl = $("#tempo");
   const sequenciaEl = $("#sequencia");
   const recordeEl = $("#recorde");
+  const categoriaRodadaEl = $("#categoria-rodada");
 
   let celulasEl = []; // matriz de elementos DOM
 
@@ -419,6 +499,8 @@
     const ordenadas = estado.solucoes
       .map((s, i) => ({ s, i }))
       .sort((a, b) => a.s.exibicao.localeCompare(b.s.exibicao));
+    categoriaRodadaEl.textContent =
+      estado.categoriaRodada === "Todas" ? "🎲 Variado" : "🎲 " + estado.categoriaRodada;
     const escondeLista = !modoAtual().mostraPalavras;
     for (const { s, i } of ordenadas) {
       const li = document.createElement("li");
@@ -555,9 +637,16 @@
     return a.l * b.c - a.c * b.l;
   }
 
+  // Folga da seleção tolerante: quantas células podem SOBRAR em cada ponta
+  // (passar do fim da palavra) e quantas podem FALTAR. Sobrar é barato — é o
+  // dedo escorregando; faltar precisa ser apertado, senão selecionar um pedaço
+  // qualquer da linha acertaria a palavra sem o jogador ter achado as pontas.
+  const SOBRA_MAX = 3;
+  const FALTA_MAX = 1;
+
   // Seleção "tolerante": aceita se a seleção cobre a palavra na mesma linha,
-  // permitindo errar até UMA célula em cada ponta (uma letra a mais ou a menos).
-  // Ignora o sentido do arraste (funciona de trás pra frente também).
+  // podendo passar até SOBRA_MAX células além de cada ponta e ficar até
+  // FALTA_MAX aquém. Ignora o sentido do arraste (vale de trás pra frente).
   function selecaoCobrePalavra(sel, palavra) {
     if (sel.length < 2 || palavra.length < 2) return false;
     const W0 = palavra[0];
@@ -581,8 +670,13 @@
     const lo = Math.min(a, b);
     const hi = Math.max(a, b);
     const L = palavra.length;
-    // Pontas podem diferir em no máximo 1 célula em relação à palavra.
-    return Math.abs(lo - 0) <= 1 && Math.abs(hi - (L - 1)) <= 1;
+    // Quanto a seleção passou de cada ponta (negativo = ficou aquém).
+    const sobraInicio = -lo;
+    const sobraFim = hi - (L - 1);
+    return (
+      sobraInicio <= SOBRA_MAX && sobraInicio >= -FALTA_MAX &&
+      sobraFim <= SOBRA_MAX && sobraFim >= -FALTA_MAX
+    );
   }
 
   function avaliarSelecao() {
@@ -614,10 +708,12 @@
     }
 
     // 3ª passada: palavra secreta bônus (não aparece na lista de palavras).
+    // Usa as mesmas regras das outras: exata primeiro, depois tolerante.
     if (estado.bonus && !estado.bonus.achado) {
       const bateBonus =
-        (texto === estado.bonus.palavra || invertido === estado.bonus.palavra) &&
-        mesmaLinha(celulasSelecionadas, estado.bonus.celulas);
+        ((texto === estado.bonus.palavra || invertido === estado.bonus.palavra) &&
+          mesmaLinha(celulasSelecionadas, estado.bonus.celulas)) ||
+        selecaoCobrePalavra(sel, estado.bonus.celulas);
       if (bateBonus) {
         marcarBonusAchado();
         return;
@@ -989,14 +1085,13 @@
 
   function novoJogo() {
     prepararRodada();
+    sortearCategoriaDaRodada(DIFICULDADES[estado.dificuldade]);
 
     const ok = gerarGrade();
     if (!ok) {
-      // fallback: tenta com "Todas" caso a categoria não gere palavras suficientes
-      const catAntiga = estado.categoria;
-      estado.categoria = "Todas";
+      // fallback: mistura tudo caso o tema não gere palavras suficientes
+      estado.categoriaRodada = "Todas";
       gerarGrade();
-      estado.categoria = catAntiga;
     }
 
     comecarRodada();
