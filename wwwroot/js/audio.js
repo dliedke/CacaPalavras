@@ -142,12 +142,6 @@ const SoundFX = (function () {
       tone(1200, 0, 0.09, "square", 0.16);
     },
 
-    /* Ganhou segundos no relógio: sopro curto subindo. */
-    tempoExtra() {
-      if (muted) return; ensure();
-      slide(700, 1400, 0, 0.18, "sine", 0.18);
-    },
-
     /* Acabou o tempo: descida grave e desanimada. */
     derrota() {
       if (muted) return; ensure();

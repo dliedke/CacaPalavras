@@ -8,15 +8,14 @@
   "use strict";
 
   /* ----------------------------- Configurações ---------------------------- */
-  // "segundos" é o tempo inicial do modo Contra o Relógio.
   // "minDiagonais"/"minInvertidas" são cotas mínimas de direção por rodada: sem
   // elas as diagonais ficavam raras (cabem em bem menos lugares que as retas, e
   // o posicionamento aceitava a primeira direção que coubesse).
   const DIFICULDADES = {
-    facil:   { nome: "Fácil",   emoji: "😃", grid: 10, palavras: 6,  dirs: 2, maxLen: 8,  tempoBonus: 1.0, segundos: 150, minDiagonais: 0, minInvertidas: 0 },
-    medio:   { nome: "Médio",   emoji: "🙂", grid: 12, palavras: 9,  dirs: 4, maxLen: 10, tempoBonus: 1.3, segundos: 195, minDiagonais: 0, minInvertidas: 0 },
-    dificil: { nome: "Difícil", emoji: "😎", grid: 14, palavras: 12, dirs: 8, maxLen: 12, tempoBonus: 1.7, segundos: 255, minDiagonais: 3, minInvertidas: 3 },
-    expert:  { nome: "Expert",  emoji: "🤯", grid: 16, palavras: 16, dirs: 8, maxLen: 14, tempoBonus: 2.2, segundos: 315, minDiagonais: 5, minInvertidas: 5 },
+    facil:   { nome: "Fácil",   emoji: "😃", grid: 10, palavras: 6,  dirs: 2, maxLen: 8,  tempoBonus: 1.0, minDiagonais: 0, minInvertidas: 0 },
+    medio:   { nome: "Médio",   emoji: "🙂", grid: 12, palavras: 9,  dirs: 4, maxLen: 10, tempoBonus: 1.3, minDiagonais: 0, minInvertidas: 0 },
+    dificil: { nome: "Difícil", emoji: "😎", grid: 14, palavras: 12, dirs: 8, maxLen: 12, tempoBonus: 1.7, minDiagonais: 3, minInvertidas: 3 },
+    expert:  { nome: "Expert",  emoji: "🤯", grid: 16, palavras: 16, dirs: 8, maxLen: 14, tempoBonus: 2.2, minDiagonais: 5, minInvertidas: 5 },
   };
 
   // Modos de jogo. Cada um muda as regras do relógio, do erro e da lista, e
@@ -35,10 +34,9 @@
     },
     relogio: {
       nome: "Contra o Relógio", emoji: "⏳",
-      dica: "Corra! Cada palavra achada devolve segundos ao relógio.",
+      dica: "Escolha o tempo abaixo e corra: o relógio só desce, sem bônus por acerto.",
       mult: 1.6, regressivo: true, semRelogio: false,
       mostraPalavras: true, penalizaErro: true, dicaGratis: false,
-      segundosPorPalavra: 10, segundosPorBonus: 25,
     },
     zen: {
       nome: "Zen", emoji: "🧘",
@@ -62,6 +60,17 @@
     { id: "floresta", nome: "Floresta",   emoji: "🌿" },
     { id: "noite",    nome: "Meia-noite", emoji: "🌙" },
   ];
+
+  // Durações à escolha do jogador para o modo Contra o Relógio (em segundos).
+  // O relógio só desce a partir daqui — nenhuma palavra achada devolve tempo.
+  const TEMPOS_RELOGIO = [
+    { segundos: 60,  nome: "1 min" },
+    { segundos: 120, nome: "2 min" },
+    { segundos: 180, nome: "3 min" },
+    { segundos: 300, nome: "5 min" },
+    { segundos: 600, nome: "10 min" },
+  ];
+  const TEMPO_RELOGIO_PADRAO = 180;
 
   // Direções: [dLinha, dColuna]. As primeiras são as mais fáceis.
   //  →  ↓  ↘  ↗   ←  ↑  ↖  ↙
@@ -130,6 +139,7 @@
     modo: "classico",
     dificuldade: "medio",
     categoria: "Todas",
+    tempoRelogio: TEMPO_RELOGIO_PADRAO, // duração do Contra o Relógio, em segundos
   };
 
   function carregarOpcoes() {
@@ -144,6 +154,9 @@
     if (!TEMAS.some((t) => t.id === o.tema)) o.tema = OPCOES_PADRAO.tema;
     if (!MODOS[o.modo]) o.modo = OPCOES_PADRAO.modo;
     if (!DIFICULDADES[o.dificuldade]) o.dificuldade = OPCOES_PADRAO.dificuldade;
+    if (!TEMPOS_RELOGIO.some((t) => t.segundos === o.tempoRelogio)) {
+      o.tempoRelogio = OPCOES_PADRAO.tempoRelogio;
+    }
     return o;
   }
 
@@ -749,9 +762,6 @@
     const ganho = Math.round((base + bonusSeq) * conf.tempoBonus * modo.mult);
     estado.pontos += ganho;
 
-    // Contra o Relógio: cada palavra devolve segundos ao cronômetro.
-    if (modo.regressivo && modo.segundosPorPalavra) ganharTempo(modo.segundosPorPalavra);
-
     for (const { l, c } of sol.celulas) {
       const cel = celulasEl[l][c];
       cel.classList.add("achado");
@@ -801,8 +811,6 @@
     const modo = modoAtual();
     const ganho = Math.round((bonus.palavra.length * 15 + 40) * conf.tempoBonus * modo.mult);
     estado.pontos += ganho;
-
-    if (modo.regressivo && modo.segundosPorBonus) ganharTempo(modo.segundosPorBonus);
 
     for (const { l, c } of bonus.celulas) {
       const cel = celulasEl[l][c];
@@ -855,7 +863,7 @@
     const modo = modoAtual();
     estado.inicio = Date.now();
     estado.fimTempo = modo.regressivo
-      ? estado.inicio + DIFICULDADES[estado.dificuldade].segundos * 1000
+      ? estado.inicio + opcoes.tempoRelogio * 1000
       : 0;
     ultimoBipe = -1;
     pararTimer();
@@ -891,14 +899,6 @@
     // Cronômetro normal, que o jogador pode esconder nas opções.
     tempoEl.textContent = opcoes.cronometro ? formatarTempo(tempoDecorrido()) : "⏱️";
     tempoEl.classList.remove("perigo");
-  }
-
-  // Contra o Relógio: soma segundos e mostra o ganho flutuando na grade.
-  function ganharTempo(segundos) {
-    estado.fimTempo += segundos * 1000;
-    SoundFX.tempoExtra();
-    mostrarFlutuante("+" + segundos + "s", "tempo", tempoEl);
-    atualizarTempo();
   }
 
   function pararTimer() {
@@ -1146,6 +1146,8 @@
       b.classList.toggle("ativo", b.dataset.modo === estado.modo)
     );
     $("#modo-dica").textContent = modoAtual().dica;
+    // O seletor de duração só faz sentido no modo Contra o Relógio.
+    $("#bloco-tempo-relogio").hidden = estado.modo !== "relogio";
     atualizarBotaoDica();
   }
 
@@ -1153,6 +1155,33 @@
   function atualizarBotaoDica() {
     const custo = $("#btn-dica").querySelector("small");
     if (custo) custo.textContent = modoAtual().dicaGratis ? "(grátis)" : "(-15)";
+  }
+
+  // Botões de duração do Contra o Relógio, montados a partir de TEMPOS_RELOGIO.
+  function preencherTemposRelogio() {
+    const cont = $("#tempos-relogio");
+    for (const t of TEMPOS_RELOGIO) {
+      const btn = document.createElement("button");
+      btn.className = "tempo-btn";
+      btn.dataset.segundos = t.segundos;
+      btn.textContent = t.nome;
+      btn.addEventListener("click", () => {
+        if (opcoes.tempoRelogio === t.segundos) return;
+        SoundFX.click();
+        opcoes.tempoRelogio = t.segundos;
+        salvarOpcoes();
+        marcarTempoRelogioAtivo();
+        if (estado.modo === "relogio") novoJogo();
+      });
+      cont.appendChild(btn);
+    }
+    marcarTempoRelogioAtivo();
+  }
+
+  function marcarTempoRelogioAtivo() {
+    document.querySelectorAll(".tempo-btn").forEach((b) =>
+      b.classList.toggle("ativo", +b.dataset.segundos === opcoes.tempoRelogio)
+    );
   }
 
   // Chips de tema visual dentro do modal de opções.
@@ -1323,6 +1352,7 @@
 
     preencherCategorias();
     preencherModos();
+    preencherTemposRelogio();
     preencherTemas();
     ligarOpcoes();
     ligarEventos();

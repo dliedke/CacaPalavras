@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#7b2ff7" />
   <meta name="description" content="Caça-Palavras Turbo — jogo de caça-palavras colorido e divertido com modos de jogo, temas, palavras em todas as direções, dificuldades e mais de 1300 palavras." />
   <title>🔤 Caça-Palavras Turbo</title>
-  <link rel="stylesheet" href="css/style.css?v=9" />
+  <link rel="stylesheet" href="css/style.css?v=10" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔤</text></svg>" />
 </head>
 <body data-tema="turbo">
@@ -42,6 +42,10 @@
         <label class="rotulo">Modo de jogo</label>
         <div id="modos" class="modos"></div>
         <p id="modo-dica" class="modo-dica"></p>
+        <div class="bloco-tempo-relogio" id="bloco-tempo-relogio" hidden>
+          <label class="rotulo rotulo-tempo">⏳ Duração</label>
+          <div id="tempos-relogio" class="tempos-relogio"></div>
+        </div>
       </div>
 
       <div class="bloco">
@@ -178,6 +182,7 @@
         <li>🎲 Toda rodada tem um <strong>tema só</strong> (Animais, Frutas, Países...), mostrado ao lado da lista.</li>
         <li>👍 Não precisa parar a seleção na letra exata: pode <strong>passar até 3 casas</strong> além de cada ponta da palavra.</li>
         <li>🎮 Escolha um <strong>modo de jogo</strong>: Clássico, ⏳ Contra o Relógio, 🧘 Zen ou 🕶️ Às Cegas — cada um vale uma pontuação diferente.</li>
+        <li>⏳ No <strong>Contra o Relógio</strong>, você escolhe a duração (1 a 10 min); o tempo só desce, sem bônus por acertar.</li>
         <li>🔥 Ache palavras em <strong>sequência</strong> sem errar para ganhar bônus de pontos.</li>
         <li>💡 Sem ideia? Use uma <strong>dica</strong> — mas custa 15 pontos (no Zen é de graça).</li>
         <li>🎁 Há uma <strong>palavra secreta</strong> escondida fora da lista: ache para ganhar pontos extra.</li>
@@ -190,8 +195,8 @@
     </div>
   </div>
 
-  <script src="js/words.js?v=9"></script>
-  <script src="js/audio.js?v=9"></script>
-  <script src="js/game.js?v=9"></script>
+  <script src="js/words.js?v=10"></script>
+  <script src="js/audio.js?v=10"></script>
+  <script src="js/game.js?v=10"></script>
 </body>
 </html>
